@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="StudyLens is a learning workspace for turning source material into structured knowledge." />
+    <title>StudyLens — Learning workspace</title>
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/main.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="app-shell" data-app-shell>
+        <aside class="sidebar" id="primary-navigation" aria-label="Primary navigation">
+            <a class="brand" href="#dashboard" aria-label="StudyLens dashboard">
+                <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6.5 12 3l8 3.5-8 3-8-3Z"/><path d="M7 9.25v5.5c0 1.1 2.24 2.5 5 2.5s5-1.4 5-2.5v-5.5"/><path d="M20 7v5"/></svg></span>
+                <span>StudyLens</span>
+            </a>
+            <nav class="sidebar-nav" aria-label="StudyLens pages">
+                <button class="nav-item is-active" type="button" data-route="dashboard" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></button>
+                <button class="nav-item" type="button" data-route="library"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v19H6.5A2.5 2.5 0 0 1 4 18.5v-14A2.5 2.5 0 0 1 6.5 2Z"/></svg><span>Library</span></button>
+                <button class="nav-item" type="button" data-route="notes"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></svg><span>Notes</span></button>
+                <button class="nav-item" type="button" data-route="flashcards"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m8 12 2.5 2.5L16 9"/></svg><span>Flashcards</span></button>
+                <button class="nav-item" type="button" data-route="quizzes"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M9.75 9a2.5 2.5 0 1 1 4.1 1.9c-.92.73-1.85 1.2-1.85 2.6M12 17h.01"/></svg><span>Quizzes</span></button>
+                <button class="nav-item" type="button" data-route="analytics"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Analytics</span></button>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="nav-item" type="button" data-route="settings"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.55V20.3h-3v-.09A1.7 1.7 0 0 0 10.68 18.7a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.02 15a1.7 1.7 0 0 0-1.55-1.03h-.09v-3h.09A1.7 1.7 0 0 0 7.02 9.94a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.55v-.09h3v.09a1.7 1.7 0 0 0 1.03 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.55 1.03h.09v3h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg><span>Settings</span></button>
+            </div>
+        </aside>
+        <div class="mobile-nav-backdrop" data-mobile-nav-close aria-hidden="true"></div>
+        <div class="app-workspace">
+            <header class="app-header">
+                <button class="icon-button mobile-menu-button" type="button" aria-label="Open navigation" aria-controls="primary-navigation" aria-expanded="false" data-mobile-nav-toggle><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+                <div><p class="header-title" data-page-title>Dashboard</p><p class="header-description" data-page-description>Your learning workspace at a glance.</p></div>
+            </header>
+            <main class="main-content" id="main-content" tabindex="-1">
+                <section class="page-view is-active" id="dashboard" data-page="dashboard" aria-labelledby="dashboard-heading">
+                    <div class="welcome-panel"><div><p class="eyebrow">Your learning workspace</p><h1 id="dashboard-heading">Welcome to StudyLens</h1><p class="lead">Bring learning material together and turn it into structured knowledge when processing tools are ready.</p></div></div>
+                    <section class="content-section" aria-labelledby="quick-actions-heading">
+                        <div class="section-heading"><div><h2 id="quick-actions-heading">Add learning material</h2><p>Choose a source to prepare for a future study session.</p></div></div>
+                        <div class="quick-actions-grid">
+                            <button class="action-card" type="button" data-resource-action="video"><span class="action-icon tone-violet"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3Z"/></svg></span><span><strong>Add video</strong><small>Import a video link</small></span></button>
+                            <button class="action-card" type="button" data-resource-action="pdf"><span class="action-icon tone-rose"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M8 14h8M8 18h5"/></svg></span><span><strong>Upload PDF</strong><small>Add a document</small></span></button>
+                            <button class="action-card" type="button" data-resource-action="image"><span class="action-icon tone-amber"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg></span><span><strong>Upload image</strong><small>Capture visual material</small></span></button>
+                            <button class="action-card" type="button" data-resource-action="text"><span class="action-icon tone-blue"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h8"/></svg></span><span><strong>Add text</strong><small>Paste written material</small></span></button>
+                        </div>
+                    </section>
+                    <section class="content-section" aria-labelledby="stats-heading">
+                        <div class="section-heading"><div><h2 id="stats-heading">Your learning library</h2><p>Counts will update when resources are stored locally.</p></div></div>
+                        <div class="stats-grid"><article class="stat-card"><span class="stat-label">Total resources</span><strong data-stat="resources">0</strong></article><article class="stat-card"><span class="stat-label">Notes</span><strong data-stat="notes">0</strong></article><article class="stat-card"><span class="stat-label">Flashcards</span><strong data-stat="flashcards">0</strong></article><article class="stat-card"><span class="stat-label">Quizzes</span><strong data-stat="quizzes">0</strong></article></div>
+                    </section>
+                    <section class="content-section two-column-layout" aria-label="Recent resources and getting started">
+                        <article class="card"><div class="card-header"><div><h2>Recent resources</h2><p>Your latest learning materials will appear here.</p></div><button class="text-button" type="button" data-route="library">Open library</button></div><div class="empty-state compact"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5"/></svg></span><h3>No resources yet</h3><p>Add a learning source when import tools become available.</p></div></article>
+                        <article class="card"><div class="card-header"><div><h2>Getting started</h2><p>A simple path from source material to study time.</p></div></div><ol class="workflow-list"><li><span>1</span><div><strong>Add learning material</strong><p>Start with a video, PDF, image, or text.</p></div></li><li><span>2</span><div><strong>Process content</strong><p>StudyLens will prepare the material for learning.</p></div></li><li><span>3</span><div><strong>Generate learning resources</strong><p>Create notes, flashcards, and quizzes.</p></div></li><li><span>4</span><div><strong>Review and learn</strong><p>Return to the resources that support your goals.</p></div></li></ol></article>
+                    </section>
+                </section>
+                <section class="page-view" id="library" data-page="library" aria-labelledby="library-heading" hidden>
+                    <div class="page-intro"><div><p class="eyebrow">Knowledge library</p><h1 id="library-heading">Library</h1><p class="lead">Search, organise, and return to your learning sources in one place.</p></div></div>
+                    <section class="card library-toolbar" aria-label="Library controls"><div class="field field-search"><label class="sr-only" for="library-search">Search learning resources</label><span class="input-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.35-4.35"/></svg></span><input id="library-search" type="search" placeholder="Search your resources" autocomplete="off" /></div><div class="field"><label for="resource-type">Resource type</label><select id="resource-type"><option value="all">All types</option><option value="video">Video</option><option value="pdf">PDF</option><option value="image">Image</option><option value="text">Text</option></select></div><div class="field"><label for="library-sort">Sort by</label><select id="library-sort"><option value="recent">Most recent</option><option value="oldest">Oldest first</option><option value="title">Title</option></select></div></section>
+                    <div class="empty-state page-empty"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v19H6.5A2.5 2.5 0 0 1 4 18.5v-14A2.5 2.5 0 0 1 6.5 2Z"/></svg></span><h2>Your library is ready</h2><p>Resources saved to StudyLens will be displayed here. Import and storage are planned for a later phase.</p><button class="button button-primary" type="button" data-resource-action="pdf">Add material</button></div>
+                </section>
+                <section class="page-view" id="notes" data-page="notes" aria-labelledby="notes-heading" hidden>
+                    <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Study notes</p><h1 id="notes-heading">Notes</h1><p class="lead">Keep generated and personal notes alongside the material they explain.</p></div><button class="button button-primary" type="button" data-feature-action="notes">Create note</button></div>
+                    <div class="empty-state page-empty"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></svg></span><h2>No notes yet</h2><p>Notes will appear here once the note workspace is introduced.</p><button class="button button-secondary" type="button" data-feature-action="notes">Create a note</button></div>
+                </section>
+                <section class="page-view" id="flashcards" data-page="flashcards" aria-labelledby="flashcards-heading" hidden>
+                    <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Active recall</p><h1 id="flashcards-heading">Flashcards</h1><p class="lead">Build a focused deck from the concepts worth remembering.</p></div><button class="button button-primary" type="button" data-feature-action="flashcards">Create flashcards</button></div>
+                    <div class="empty-state page-empty"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m8 12 2.5 2.5L16 9"/></svg></span><h2>No flashcards yet</h2><p>Flashcard creation and review will be available after processing tools are added.</p><button class="button button-secondary" type="button" data-feature-action="flashcards">Create flashcards</button></div>
+                </section>
+                <section class="page-view" id="quizzes" data-page="quizzes" aria-labelledby="quizzes-heading" hidden>
+                    <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Knowledge checks</p><h1 id="quizzes-heading">Quizzes</h1><p class="lead">Use questions and feedback to check what has stuck.</p></div><button class="button button-primary" type="button" data-feature-action="quizzes">Create quiz</button></div>
+                    <div class="empty-state page-empty"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M9.75 9a2.5 2.5 0 1 1 4.1 1.9c-.92.73-1.85 1.2-1.85 2.6M12 17h.01"/></svg></span><h2>No quizzes yet</h2><p>Quiz generation will become available when learning resources can be processed.</p><button class="button button-secondary" type="button" data-feature-action="quizzes">Create quiz</button></div>
+                </section>
+                <section class="page-view" id="analytics" data-page="analytics" aria-labelledby="analytics-heading" hidden>
+                    <div class="page-intro"><div><p class="eyebrow">Learning insights</p><h1 id="analytics-heading">Analytics</h1><p class="lead">Understand your study patterns after you begin building your library.</p></div></div>
+                    <section class="analytics-placeholder" aria-labelledby="analytics-summary-heading"><article class="card"><p class="card-kicker">Study activity</p><h2 id="analytics-summary-heading">Progress will appear here</h2><p>StudyLens will calculate analytics from locally stored resources and reviews. No progress data exists yet.</p><div class="progress-track" aria-label="No progress data available"><span></span></div></article><article class="card"><p class="card-kicker">Learning focus</p><h2>Ready when you are</h2><p>Add material and generate learning resources to start building a meaningful view of your study activity.</p></article></section>
+                    <div class="empty-state compact"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></span><h2>No analytics yet</h2><p>There is no activity to analyse until future learning tools are used.</p></div>
+                </section>
+                <section class="page-view" id="settings" data-page="settings" aria-labelledby="settings-heading" hidden>
+                    <div class="page-intro"><div><p class="eyebrow">Application preferences</p><h1 id="settings-heading">Settings</h1><p class="lead">Review the areas that will make StudyLens yours as its capabilities grow.</p></div></div>
+                    <div class="settings-grid">
+                        <article class="settings-card"><div class="settings-icon tone-violet"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></svg></div><div><div class="card-title-row"><h2>AI configuration</h2><span class="badge">Planned</span></div><p>Provider choices and processing preferences will be configured here in a future phase.</p></div></article>
+                        <article class="settings-card"><div class="settings-icon tone-blue"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 12h16M4 19h16"/></svg></div><div><div class="card-title-row"><h2>Appearance</h2><span class="badge">Planned</span></div><p>Theme and display preferences will be available here.</p></div></article>
+                        <article class="settings-card"><div class="settings-icon tone-amber"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v7c0 1.66 3.13 3 7 3s7-1.34 7-3V5M5 12v7c0 1.66 3.13 3 7 3s7-1.34 7-3v-7"/></svg></div><div><div class="card-title-row"><h2>Storage</h2><span class="badge">Planned</span></div><p>Local data usage and IndexedDB management will be surfaced here.</p></div></article>
+                        <article class="settings-card"><div class="settings-icon tone-rose"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.55V20.3h-3v-.09A1.7 1.7 0 0 0 10.68 18.7a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.02 15a1.7 1.7 0 0 0-1.55-1.03h-.09v-3h.09A1.7 1.7 0 0 0 7.02 9.94a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.55v-.09h3v.09a1.7 1.7 0 0 0 1.03 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.55 1.03h.09v3h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg></div><div><div class="card-title-row"><h2>Application preferences</h2><span class="badge">Planned</span></div><p>General product preferences will be introduced here when they are actionable.</p></div></article>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    <dialog class="modal" id="coming-soon-modal" aria-labelledby="modal-title" aria-describedby="modal-description">
+        <div class="modal-header"><div><p class="eyebrow">StudyLens roadmap</p><h2 id="modal-title">This feature is coming soon</h2></div><button class="icon-button" type="button" aria-label="Close dialog" data-modal-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+        <p id="modal-description">This action is a UI entry point only. Processing will be added in a later development phase.</p>
+        <div class="modal-footer"><button class="button button-primary" type="button" data-modal-close>Got it</button></div>
+    </dialog>
+    <div class="toast" role="status" aria-live="polite" aria-atomic="true" hidden data-toast></div>
+    <script src="js/app.js" type="module"></script>
+</body>
+</html>

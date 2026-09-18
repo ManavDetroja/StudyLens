@@ -1,0 +1,30 @@
+@media (max-width: 1023px) {
+    :root { --sidebar-width: 14.25rem; }
+    .quick-actions-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .two-column-layout, .analytics-placeholder { grid-template-columns: 1fr; }
+}
+@media (max-width: 767px) {
+    :root { --header-height: 4.25rem; }
+    .app-shell { display: block; }
+    .sidebar { position: fixed; z-index: 12; top: 0; left: 0; width: min(17rem, calc(100vw - 3.5rem)); height: 100dvh; transform: translateX(-105%); box-shadow: var(--shadow-md); transition: transform 220ms ease; }
+    .app-shell.is-mobile-nav-open .sidebar { transform: translateX(0); }
+    .mobile-nav-backdrop { position: fixed; z-index: 11; inset: 0; background: rgb(12 18 32 / 0.35); opacity: 0; pointer-events: none; transition: opacity 220ms ease; }
+    .app-shell.is-mobile-nav-open .mobile-nav-backdrop { display: block; opacity: 1; pointer-events: auto; }
+    .mobile-menu-button { display: inline-grid; }
+    .app-header { position: sticky; z-index: 10; top: 0; padding: 0.7rem 1rem; }
+    .main-content { padding: 1.5rem 1rem 2rem; }
+    .welcome-panel { min-height: 0; margin-bottom: 1.75rem; padding: 1.5rem; }
+    .content-section { margin-top: 1.75rem; }
+    .page-intro { margin-bottom: 1.5rem; }
+    .page-intro-with-action { align-items: flex-start; flex-direction: column; }
+    .library-toolbar, .settings-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 479px) {
+    h1 { font-size: 1.9rem; }
+    .quick-actions-grid, .stats-grid { grid-template-columns: 1fr; }
+    .action-card { min-height: 4.3rem; }
+    .card-header { flex-direction: column; }
+    .empty-state { padding-right: 0.5rem; padding-left: 0.5rem; }
+    .modal-header, .modal > p, .modal-footer { padding-right: 1.15rem; padding-left: 1.15rem; }
+}
