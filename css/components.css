@@ -77,3 +77,5 @@
 .modal > p { margin: 1rem 1.5rem 0; }
 .modal-footer { display: flex; justify-content: flex-end; padding: 1.5rem; }
 .toast { position: fixed; z-index: 30; right: 1rem; bottom: 1rem; max-width: min(24rem, calc(100% - 2rem)); padding: 0.8rem 1rem; border-radius: var(--radius-sm); background: var(--color-text); color: #fff; box-shadow: var(--shadow-md); font-size: 0.875rem; }
+.storage-notice { display: flex; flex-wrap: wrap; gap: 0.35rem; width: min(calc(100% - 2rem), var(--content-max-width)); margin: 1rem auto 0; padding: 0.85rem 1rem; border: 1px solid #f0c7ce; border-radius: var(--radius-sm); background: var(--color-rose-soft); color: #8e3d52; font-size: 0.875rem; }
+.storage-notice strong { color: inherit; }

@@ -24,4 +24,42 @@ Desktop uses a persistent sidebar. Tablet preserves the compact sidebar while co
 
 ## Future data flow
 
-Future source adapters, processing services, and IndexedDB persistence will supply the currently empty resource, note, flashcard, quiz, and analytics areas. Day 2 stores no learning data and does not implement processing or AI features.
+Future source adapters and processing services will supply the currently empty resource, note, flashcard, quiz, and analytics areas. Day 3 stores resource metadata only and does not implement source ingestion, processing, or AI features.
+
+## IndexedDB storage foundation
+
+StudyLens uses the browser native IndexedDB API behind a storage boundary:
+
+    UI
+      ↓
+    Feature logic
+      ↓
+    Resource repository
+      ↓
+    IndexedDB connection
+
+The UI never opens IndexedDB directly. js/features/storageStatus.js coordinates application startup and Dashboard resource-count display. It calls the storage modules and renders an accessible error notice if local storage cannot be opened.
+
+### Database schema
+
+- Database: StudyLensDB
+- Schema version: 1
+- Object store: resources, keyed by the immutable Resource id
+- Non-unique indexes: type, createdAt, updatedAt, and status
+
+The indexes support future resource-type views, processing queues, chronological listings, and recent-resource sorting without adding unneeded stores today.
+
+### Storage modules
+
+- js/storage/databaseSchema.js owns database constants, resource-store creation, indexes, and upgrade steps.
+- js/storage/indexedDB.js owns a cached, version-aware database connection and database availability errors.
+- js/storage/resourceValidation.js owns resource creation, UUID generation, field validation, and immutable-field checks.
+- js/storage/resourceStore.js exposes the repository API and converts native requests into clean promises.
+
+### Migration strategy
+
+Schema changes must increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Later releases can add notes, flashcards, quizzes, or analytics stores through an upgrade transaction without replacing the resources store or existing user data.
+
+### Resource model
+
+Resource records contain id, title, type, source, content, createdAt, updatedAt, status, tags, and metadata. IDs are generated with crypto.randomUUID when a record is created. The id and createdAt fields cannot be changed by updates; updatedAt is refreshed automatically.

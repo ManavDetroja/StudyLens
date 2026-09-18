@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — 2026-09-18
+
+- Added StudyLensDB, schema version 1, and the resources IndexedDB object store.
+- Added type, createdAt, updatedAt, and status indexes for future library and processing workflows.
+- Added the validated Resource model, crypto.randomUUID identifiers, statuses, metadata, and resource repository CRUD API.
+- Initialised local storage at startup, surfaced storage failures in the UI, and connected the Dashboard resource count to IndexedDB.
+- Added Node validation tests and a self-cleaning native-browser IndexedDB CRUD test suite.
+- Documented schema migration and current storage limitations.
+
 ## 0.2.0 — 2026-09-18
 
 - Added the responsive StudyLens application shell and seven in-place pages.

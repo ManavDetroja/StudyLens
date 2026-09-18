@@ -4,7 +4,8 @@
 
 - Day 1: Project scaffold and architecture baseline. Complete.
 - Day 2: Responsive application shell, UI system, and placeholder page states. Complete.
-- Next: IndexedDB-backed resource metadata, then safe source-entry workflows.
+- Day 3: Versioned IndexedDB storage, Resource model, repository CRUD API, and tests. Complete.
+- Next: Add a safe text-resource entry workflow that uses the Day 3 repository without implementing source extraction.
 
 ## V2 — Content processing
 
