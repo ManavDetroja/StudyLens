@@ -50,9 +50,10 @@
 .library-toolbar { display: grid; grid-template-columns: minmax(14rem, 1.5fr) minmax(9rem, 1fr) minmax(9rem, 1fr); gap: 0.875rem; align-items: end; }
 .field { display: grid; gap: 0.35rem; }
 .field label { color: var(--color-text-muted); font-size: 0.78rem; font-weight: 700; }
-.field input, .field select { width: 100%; min-height: 2.65rem; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); }
+.field input, .field select, .field textarea { width: 100%; min-height: 2.65rem; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); }
+.field textarea { min-height: 12rem; resize: vertical; line-height: 1.55; }
 .field input::placeholder { color: #9299aa; }
-.field input:focus, .field select:focus { border-color: var(--color-primary); outline: 3px solid color-mix(in srgb, var(--color-primary) 18%, transparent); }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--color-primary); outline: 3px solid color-mix(in srgb, var(--color-primary) 18%, transparent); }
 .field-search { position: relative; }
 .field-search input { padding-left: 2.5rem; }
 .input-icon { position: absolute; bottom: 0.75rem; left: 0.8rem; color: var(--color-text-muted); pointer-events: none; }
@@ -69,6 +70,25 @@
 .card-title-row h2 { margin: 0; font-size: 1rem; }
 .settings-card p { margin: 0.4rem 0 0; font-size: 0.875rem; }
 .badge { display: inline-flex; align-items: center; min-height: 1.35rem; padding: 0.1rem 0.45rem; border: 1px solid #dddff5; border-radius: 99rem; background: var(--color-primary-soft); color: var(--color-primary-strong); font-size: 0.68rem; font-weight: 750; }
+.button-danger { background: #b33c55; color: #fff; }
+.button-danger:hover { background: #912d43; }
+.form-stack { display: grid; gap: 1rem; padding: 1.25rem 1.5rem 0; }
+.form-helper { margin: 0; color: var(--color-text-muted); font-size: 0.78rem; line-height: 1.45; }
+.optional-label { color: var(--color-text-muted); font-weight: 500; }
+.form-error { margin: 0; padding: 0.75rem; border: 1px solid #f0c7ce; border-radius: var(--radius-sm); background: var(--color-rose-soft); color: #8e3d52; font-size: 0.875rem; }
+.resource-list { display: grid; gap: 0.875rem; margin-top: 1.25rem; }
+.resource-list-compact { margin-top: 1.25rem; }
+.resource-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.65rem 1rem; padding: 1.15rem 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.resource-card h2, .resource-card h3 { min-width: 0; margin: 0; }
+.resource-card-title { max-width: 100%; padding: 0; overflow: hidden; border: 0; background: transparent; color: var(--color-text); font: inherit; font-size: 1rem; font-weight: 750; letter-spacing: -0.01em; text-align: left; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+.resource-card-title:hover { color: var(--color-primary); text-decoration: underline; }
+.resource-card-meta { display: flex; grid-column: 1 / -1; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; color: var(--color-text-muted); font-size: 0.8rem; }
+.resource-status { display: inline-flex; align-items: center; min-height: 1.4rem; padding: 0.1rem 0.45rem; border-radius: 99rem; background: var(--color-surface-subtle); color: var(--color-text-muted); font-size: 0.7rem; font-weight: 750; text-transform: capitalize; }
+.resource-tags { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+.resource-tag { padding: 0.16rem 0.48rem; border-radius: 99rem; background: var(--color-surface-subtle); color: var(--color-text-muted); font-size: 0.72rem; font-weight: 650; }
+.resource-card-compact { grid-template-columns: minmax(0, 1fr); padding: 0.9rem 0; border-width: 0 0 1px; border-radius: 0; box-shadow: none; }
+.resource-card-compact:last-child { border-bottom: 0; padding-bottom: 0; }
+.resource-card-compact .badge { display: none; }
 .modal { width: min(calc(100% - 2rem), 31rem); padding: 0; border: 0; border-radius: var(--radius-lg); color: var(--color-text); box-shadow: 0 24px 70px rgb(16 24 40 / 0.22); }
 .modal::backdrop { background: rgb(12 18 32 / 0.45); backdrop-filter: blur(2px); }
 .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.5rem 1.5rem 0; }
@@ -76,6 +96,13 @@
 .modal-header h2 { margin: 0; font-size: 1.25rem; }
 .modal > p { margin: 1rem 1.5rem 0; }
 .modal-footer { display: flex; justify-content: flex-end; padding: 1.5rem; }
+.dialog-actions { gap: 0.75rem; }
+.resource-dialog, .resource-viewer-dialog { width: min(calc(100% - 2rem), 46rem); }
+.resource-viewer-body { display: grid; gap: 1.25rem; padding: 1.25rem 1.5rem 0; }
+.resource-viewer-body h3 { margin-bottom: 0.5rem; font-size: 0.9rem; }
+.resource-detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; color: var(--color-text-muted); font-size: 0.825rem; }
+.resource-content { max-height: 22rem; margin: 0; padding: 1rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle); color: var(--color-text); font-family: var(--font-sans); font-size: 0.9rem; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
 .toast { position: fixed; z-index: 30; right: 1rem; bottom: 1rem; max-width: min(24rem, calc(100% - 2rem)); padding: 0.8rem 1rem; border-radius: var(--radius-sm); background: var(--color-text); color: #fff; box-shadow: var(--shadow-md); font-size: 0.875rem; }
+.toast[data-variant="error"] { background: #8e3d52; }
 .storage-notice { display: flex; flex-wrap: wrap; gap: 0.35rem; width: min(calc(100% - 2rem), var(--content-max-width)); margin: 1rem auto 0; padding: 0.85rem 1rem; border: 1px solid #f0c7ce; border-radius: var(--radius-sm); background: var(--color-rose-soft); color: #8e3d52; font-size: 0.875rem; }
 .storage-notice strong { color: inherit; }

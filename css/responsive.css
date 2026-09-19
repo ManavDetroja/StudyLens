@@ -19,6 +19,10 @@
     .page-intro { margin-bottom: 1.5rem; }
     .page-intro-with-action { align-items: flex-start; flex-direction: column; }
     .library-toolbar, .settings-grid { grid-template-columns: 1fr; }
+    .resource-card { grid-template-columns: 1fr; }
+    .resource-card .badge { justify-self: start; }
+    .modal-footer.dialog-actions { align-items: stretch; flex-direction: column-reverse; }
+    .modal-footer.dialog-actions .button { width: 100%; }
 }
 @media (max-width: 479px) {
     h1 { font-size: 1.9rem; }

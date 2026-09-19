@@ -1,4 +1,5 @@
 import { DatabaseConnection } from '../js/storage/indexedDB.js';
+import { createTextResourceInput, createTextResourceUpdate } from '../js/features/textResourceInput.js';
 import { ResourceRepository } from '../js/storage/resourceStore.js';
 
 function assert(condition, message) {
@@ -53,30 +54,35 @@ export async function runStorageBrowserSuite() {
         });
         results.push('Database schema and indexes created');
 
-        const created = await repository.createResource({
-            title: 'Storage test resource',
-            type: 'text',
-            source: 'manual://storage-test',
-            content: 'Temporary test content',
-            tags: ['test'],
-            metadata: { temporary: true },
-        });
+        const created = await repository.createResource(createTextResourceInput({
+            title: ' Storage test resource ',
+            content: ' Temporary test content ',
+            tags: 'test, browser, test',
+        }));
         assert(created.id === 'resource-1', 'Created resource id did not match.');
-        results.push('Create and read');
+        assert(created.status === 'completed', 'Manual text resources must be completed.');
+        assert(created.content === 'Temporary test content', 'Text content was not normalized.');
+        assert(JSON.stringify(created.tags) === JSON.stringify(['test', 'browser']), 'Tags were not normalized.');
+        results.push('Text-resource create and read');
 
         const read = await repository.getResource(created.id);
         assert(read?.title === 'Storage test resource', 'Resource could not be read by id.');
         assert((await repository.getAllResources()).length === 1, 'Read-all did not return the resource.');
         assert((await repository.getResourcesByType('text')).length === 1, 'Type index did not return the resource.');
 
-        const updated = await repository.updateResource(created.id, {
+        const updated = await repository.updateResource(created.id, createTextResourceUpdate({
             title: 'Updated storage test resource',
-            status: 'completed',
-        });
+            content: 'Updated temporary test content',
+            tags: 'updated, test',
+        }));
         assert(updated.title === 'Updated storage test resource', 'Resource title was not updated.');
         assert(updated.status === 'completed', 'Resource status was not updated.');
+        assert(updated.id === created.id, 'Update changed the resource id.');
+        assert(updated.createdAt === created.createdAt, 'Update changed createdAt.');
+        assert(updated.updatedAt !== created.updatedAt, 'Update did not change updatedAt.');
         assert((await repository.getResourcesByStatus('completed')).length === 1, 'Status index did not return the resource.');
-        results.push('Update and indexed reads');
+        assert(await repository.countResources() === 1, 'Dashboard count would not reflect resources.');
+        results.push('Update, count, and indexed reads');
 
         const duplicateRepository = new ResourceRepository({
             database: connection,

@@ -22,9 +22,23 @@ This lightweight hash approach was selected over a router because the project is
 
 Desktop uses a persistent sidebar. Tablet preserves the compact sidebar while content cards reflow. Below 768px the sidebar becomes an off-canvas navigation panel opened by a labelled header button; the backdrop and Escape key close it. The layout has a 320px minimum width and grids collapse progressively to prevent horizontal overflow.
 
-## Future data flow
+## Resource feature data flow
 
-Future source adapters and processing services will supply the currently empty resource, note, flashcard, quiz, and analytics areas. Day 3 stores resource metadata only and does not implement source ingestion, processing, or AI features.
+The Day 4 manual text workflow follows the storage boundary:
+
+    Text form / resource reader / Library
+      ↓
+    textResourceInput.js and feature modules
+      ↓
+    ResourceRepository
+      ↓
+    IndexedDB connection
+
+js/features/resourceForm.js owns form state and turns valid form fields into a text-resource input. It never creates database requests. js/features/resourceList.js reads the repository and renders Dashboard recent resources and the Library list with safe DOM methods. js/features/resourceViewer.js reads, edits, and deletes a selected resource through the repository.
+
+After create, update, or delete, js/core/resourceEvents.js emits a small resourceschanged event. Resource-list refreshes the Dashboard count, recent resources, and Library without a page reload or a state-management framework.
+
+All resource text is inserted with textContent. The viewer does not interpret user content as HTML.
 
 ## IndexedDB storage foundation
 
@@ -63,3 +77,9 @@ Schema changes must increment DATABASE_VERSION and add a version-specific migrat
 ### Resource model
 
 Resource records contain id, title, type, source, content, createdAt, updatedAt, status, tags, and metadata. IDs are generated with crypto.randomUUID when a record is created. The id and createdAt fields cannot be changed by updates; updatedAt is refreshed automatically.
+
+Manually entered text uses source manual://text-entry, status completed, and metadata entryMethod: manual. This means the text is ready to read, not that an AI or extraction pipeline was run.
+
+## Current limitations
+
+Day 4 supports only manually entered text resources. The Library intentionally has no live search, filtering, ranking, or source adapters yet. Notes, flashcards, quizzes, analytics, image/PDF/video processing, and AI capabilities remain later work.

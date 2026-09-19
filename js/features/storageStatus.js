@@ -13,10 +13,14 @@ function showStorageError() {
     notice.querySelector('[data-storage-error-message]').textContent = 'StudyLens could not open local storage. Resources cannot be saved until storage is available.';
 }
 
+export async function refreshDashboardResourceCount() {
+    setResourceCount(await resourceRepository.countResources());
+}
+
 export async function initializeApplicationStorage() {
     try {
         await initializeDatabase();
-        setResourceCount(await resourceRepository.countResources());
+        await refreshDashboardResourceCount();
         document.documentElement.dataset.storageState = 'ready';
         return true;
     } catch (error) {

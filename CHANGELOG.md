@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-09-19
+
+- Added the manual Add Text workflow with title, content, and normalized comma-separated tags.
+- Added ResourceRepository-backed text-resource creation, reader, edit, and confirmed deletion flows.
+- Added real Dashboard resource counts and recent resources, plus real Library resource cards.
+- Added safe text-only resource-content rendering and focused Day 4 tests.
+- Added concise AGENTS.md repository guidance.
+
 ## 0.3.0 — 2026-09-18
 
 - Added StudyLensDB, schema version 1, and the resources IndexedDB object store.
