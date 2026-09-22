@@ -47,7 +47,9 @@
 .button-primary:hover { background: var(--color-primary-strong); }
 .button-secondary { border-color: var(--color-border-strong); background: var(--color-surface); color: var(--color-text); }
 .button-secondary:hover { background: var(--color-surface-subtle); }
-.library-toolbar { display: grid; grid-template-columns: minmax(14rem, 1.5fr) minmax(9rem, 1fr) minmax(9rem, 1fr); gap: 0.875rem; align-items: end; }
+.library-toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.875rem; align-items: end; }
+.library-toolbar .field-search { grid-column: 1 / -1; }
+.library-status-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem; color: var(--color-text-muted); font-size: 0.875rem; }
 .field { display: grid; gap: 0.35rem; }
 .field label { color: var(--color-text-muted); font-size: 0.78rem; font-weight: 700; }
 .field input, .field select, .field textarea { width: 100%; min-height: 2.65rem; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); }
@@ -85,7 +87,9 @@
 .resource-card-meta { display: flex; grid-column: 1 / -1; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; color: var(--color-text-muted); font-size: 0.8rem; }
 .resource-status { display: inline-flex; align-items: center; min-height: 1.4rem; padding: 0.1rem 0.45rem; border-radius: 99rem; background: var(--color-surface-subtle); color: var(--color-text-muted); font-size: 0.7rem; font-weight: 750; text-transform: capitalize; }
 .resource-tags { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
-.resource-tag { padding: 0.16rem 0.48rem; border-radius: 99rem; background: var(--color-surface-subtle); color: var(--color-text-muted); font-size: 0.72rem; font-weight: 650; }
+.resource-tag { max-width: 16rem; padding: 0.16rem 0.48rem; border-radius: 99rem; background: var(--color-surface-subtle); color: var(--color-text-muted); font-size: 0.72rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resource-source { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-muted); font-size: 0.8rem; }
+.resource-processed-badge { background: var(--color-primary-soft); color: var(--color-primary-strong); font-size: 0.68rem; }
 .resource-card-compact { grid-template-columns: minmax(0, 1fr); padding: 0.9rem 0; border-width: 0 0 1px; border-radius: 0; box-shadow: none; }
 .resource-card-compact:last-child { border-bottom: 0; padding-bottom: 0; }
 .resource-card-compact .badge { display: none; }

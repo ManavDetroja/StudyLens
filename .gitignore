@@ -1,0 +1,15 @@
+# Dependencies and logs
+node_modules/
+npm-debug.log*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+
+# Editor files
+.vscode/
+.idea/

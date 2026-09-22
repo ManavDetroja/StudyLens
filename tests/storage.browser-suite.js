@@ -1,6 +1,8 @@
 import { DatabaseConnection } from '../js/storage/indexedDB.js';
 import { createTextResourceInput, createTextResourceUpdate } from '../js/features/textResourceInput.js';
 import { ResourceRepository } from '../js/storage/resourceStore.js';
+import { ProcessedContentRepository } from '../js/storage/processedContentStore.js';
+import { processAndStore, getProcessedContent, deleteProcessedContent } from '../js/features/processingIntegration.js';
 
 function assert(condition, message) {
     if (!condition) throw new Error(message);
@@ -43,6 +45,9 @@ export async function runStorageBrowserSuite() {
         idGenerator: () => 'resource-' + (++idCounter),
         clock: () => new Date(timestamps.shift() ?? '2026-09-18T00:02:00.000Z'),
     });
+    const processedRepository = new ProcessedContentRepository({
+        database: connection,
+    });
     const results = [];
 
     try {
@@ -52,7 +57,12 @@ export async function runStorageBrowserSuite() {
         ['type', 'createdAt', 'updatedAt', 'status'].forEach((index) => {
             assert(resourceStore.indexNames.contains(index), 'Missing resources index: ' + index + '.');
         });
-        results.push('Database schema and indexes created');
+
+        assert(database.objectStoreNames.contains('processedContent'), 'The processedContent store was not created.');
+        const processedStore = database.transaction('processedContent', 'readonly').objectStore('processedContent');
+        assert(processedStore.indexNames.contains('resourceId'), 'Missing processedContent index: resourceId.');
+        assert(processedStore.index('resourceId').unique === true, 'resourceId index must be unique.');
+        results.push('Database schema and indexes created (v2 with processedContent)');
 
         const created = await repository.createResource(createTextResourceInput({
             title: ' Storage test resource ',
@@ -107,6 +117,24 @@ export async function runStorageBrowserSuite() {
         const persisted = await repository.getResource(created.id);
         assert(persisted?.status === 'completed', 'Resource was not available after reopening the database.');
         results.push('Persistence after reopen');
+
+        const processed = await processAndStore(created, { resRepo: repository, processedRepo: processedRepository });
+        assert(processed.resourceId === created.id, 'Processed content resourceId mismatch.');
+        assert(processed.normalizedText === 'Temporary test content', 'Normalized text mismatch.');
+        assert(processed.chunks.length > 0, 'Processed chunks missing.');
+        assert(await processedRepository.getByResourceId(created.id) !== null, 'Processed content could not be read.');
+        results.push('Processed content creation and storage');
+
+        // Reprocess on updated resource
+        const reprocessed = await processAndStore(updated, { resRepo: repository, processedRepo: processedRepository });
+        assert(reprocessed.resourceId === created.id, 'Reprocessed resourceId changed.');
+        assert(reprocessed.normalizedText === 'Updated temporary test content', 'Reprocessed text did not update.');
+        results.push('Reprocessing on resource edit');
+
+        // Cleanup processed content
+        assert(await deleteProcessedContent(created.id, processedRepository), 'Delete processed content failed.');
+        assert(await processedRepository.getByResourceId(created.id) === null, 'Processed content was still available after deletion.');
+        results.push('Processed content deletion and cleanup');
 
         assert(await repository.deleteResource(created.id), 'Delete did not report success.');
         assert(await repository.getResource(created.id) === null, 'Deleted resource was still available.');

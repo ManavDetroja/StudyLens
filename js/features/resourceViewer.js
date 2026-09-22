@@ -3,6 +3,7 @@ import { resourceRepository } from '../storage/resourceStore.js';
 import { closeDialog, openDialog } from '../ui/modal.js';
 import { showToast } from '../ui/toast.js';
 import { openTextResourceForm } from './resourceForm.js';
+import { deleteProcessedContent, getProcessedContent } from './processingIntegration.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
@@ -46,12 +47,42 @@ function renderTags(tags) {
     });
 }
 
-function renderResource(resource) {
+function renderResource(resource, processed = null) {
     document.querySelector('[data-resource-viewer-title]').textContent = resource.title;
     document.querySelector('[data-resource-viewer-type]').textContent = resource.type;
     document.querySelector('[data-resource-viewer-date]').textContent = 'Created ' + formatResourceDate(resource.createdAt);
     document.querySelector('[data-resource-viewer-status]').textContent = resource.status;
     document.querySelector('[data-resource-viewer-edit]').hidden = resource.type !== 'text';
+
+    /* Updated date — show only when meaningfully different from created date */
+    const updatedElement = document.querySelector('[data-resource-viewer-updated]');
+    if (updatedElement) {
+        const hasUpdate = resource.updatedAt && resource.updatedAt !== resource.createdAt;
+        updatedElement.textContent = hasUpdate ? 'Updated ' + formatResourceDate(resource.updatedAt) : '';
+        updatedElement.hidden = !hasUpdate;
+    }
+
+    /* Source — show only when it contains useful information */
+    const sourceElement = document.querySelector('[data-resource-viewer-source]');
+    if (sourceElement) {
+        const hasSource = resource.source && resource.source !== 'manual://text-entry' && resource.source.trim() !== '';
+        sourceElement.textContent = hasSource ? resource.source : '';
+        sourceElement.hidden = !hasSource;
+    }
+
+    /* Processed content indicator */
+    const processedElement = document.querySelector('[data-resource-viewer-processed]');
+    if (processedElement) {
+        if (processed && Array.isArray(processed.chunks) && processed.chunks.length > 0) {
+            const count = processed.chunks.length;
+            processedElement.textContent = count === 1 ? '1 chunk processed' : count + ' chunks processed';
+            processedElement.hidden = false;
+        } else {
+            processedElement.textContent = '';
+            processedElement.hidden = true;
+        }
+    }
+
     renderResourceContent(document.querySelector('[data-resource-viewer-content]'), resource.content);
     renderTags(resource.tags);
 }
@@ -64,8 +95,15 @@ export async function openResourceViewer(resourceId) {
             return;
         }
 
+        let processed = null;
+        try {
+            processed = await getProcessedContent(resourceId);
+        } catch {
+            // Processed content is an enhancement; proceed if unavailable
+        }
+
         activeResource = resource;
-        renderResource(resource);
+        renderResource(resource, processed);
         openDialog(viewerDialog());
     } catch (error) {
         console.error('StudyLens could not open the resource.', error);
@@ -101,6 +139,12 @@ export function initResourceViewer() {
             if (!deleted) {
                 showToast('This resource is no longer available.', { variant: 'error' });
                 return;
+            }
+
+            try {
+                await deleteProcessedContent(pendingDeleteId);
+            } catch (cleanupError) {
+                console.warn('StudyLens could not clean up processed content for deleted resource.', cleanupError);
             }
 
             notifyResourcesChanged({ action: 'deleted', resourceId: pendingDeleteId });

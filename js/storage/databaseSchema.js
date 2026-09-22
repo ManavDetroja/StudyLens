@@ -1,8 +1,9 @@
 import { StorageError } from './errors.js';
 
 export const DATABASE_NAME = 'StudyLensDB';
-export const DATABASE_VERSION = 1;
+export const DATABASE_VERSION = 2;
 export const RESOURCE_STORE = 'resources';
+export const PROCESSED_CONTENT_STORE = 'processedContent';
 
 export const RESOURCE_INDEXES = Object.freeze([
     { name: 'type', keyPath: 'type' },
@@ -37,5 +38,12 @@ export function upgradeDatabaseSchema(database, transaction, oldVersion) {
     if (oldVersion < 1) {
         const resourceStore = getResourceStore(database, transaction);
         ensureIndexes(resourceStore);
+    }
+
+    if (oldVersion < 2) {
+        if (!database.objectStoreNames.contains(PROCESSED_CONTENT_STORE)) {
+            const processedStore = database.createObjectStore(PROCESSED_CONTENT_STORE, { keyPath: 'id' });
+            processedStore.createIndex('resourceId', 'resourceId', { unique: true });
+        }
     }
 }

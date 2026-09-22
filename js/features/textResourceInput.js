@@ -1,17 +1,15 @@
 import { ResourceValidationError } from '../storage/errors.js';
+import { normalizeTags, validateTags } from '../utils/tagUtils.js';
 
 export const TEXT_RESOURCE_TITLE_MAX_LENGTH = 160;
 export const TEXT_RESOURCE_CONTENT_MAX_LENGTH = 50000;
 
+/**
+ * @deprecated Use normalizeTags from js/utils/tagUtils.js directly.
+ * Kept for backward compatibility with existing tests.
+ */
 export function normalizeTextResourceTags(rawTags) {
-    if (typeof rawTags !== 'string') return [];
-
-    return [...new Set(
-        rawTags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean),
-    )];
+    return normalizeTags(rawTags);
 }
 
 export function validateTextResourceInput({ title, content, tags }) {
@@ -39,10 +37,13 @@ export function validateTextResourceInput({ title, content, tags }) {
         });
     }
 
+    const normalizedTags = normalizeTags(tags);
+    validateTags(normalizedTags);
+
     return {
         title: normalizedTitle,
         content: normalizedContent,
-        tags: normalizeTextResourceTags(tags),
+        tags: normalizedTags,
     };
 }
 

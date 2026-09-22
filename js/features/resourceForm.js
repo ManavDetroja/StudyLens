@@ -2,6 +2,7 @@ import { notifyResourcesChanged } from '../core/resourceEvents.js';
 import { resourceRepository } from '../storage/resourceStore.js';
 import { closeDialog, openDialog, showModal } from '../ui/modal.js';
 import { showToast } from '../ui/toast.js';
+import { processAndStore } from './processingIntegration.js';
 import {
     TEXT_RESOURCE_CONTENT_MAX_LENGTH,
     TEXT_RESOURCE_TITLE_MAX_LENGTH,
@@ -109,6 +110,13 @@ export function initResourceActions() {
             const resource = editingResource
                 ? await resourceRepository.updateResource(editingResource.id, createTextResourceUpdate(formValues))
                 : await resourceRepository.createResource(createTextResourceInput(formValues));
+
+            /* Process the text resource in the background — non-fatal on failure */
+            try {
+                await processAndStore(resource);
+            } catch (processingError) {
+                console.warn('StudyLens could not process this resource.', processingError);
+            }
 
             closeDialog(textResourceDialog());
             notifyResourcesChanged({
