@@ -1,15 +1,22 @@
 import { StorageError } from './errors.js';
 
 export const DATABASE_NAME = 'StudyLensDB';
-export const DATABASE_VERSION = 2;
+export const DATABASE_VERSION = 3;
 export const RESOURCE_STORE = 'resources';
 export const PROCESSED_CONTENT_STORE = 'processedContent';
+export const LEARNING_OUTPUT_STORE = 'learningOutputs';
 
 export const RESOURCE_INDEXES = Object.freeze([
     { name: 'type', keyPath: 'type' },
     { name: 'createdAt', keyPath: 'createdAt' },
     { name: 'updatedAt', keyPath: 'updatedAt' },
     { name: 'status', keyPath: 'status' },
+]);
+
+export const LEARNING_OUTPUT_INDEXES = Object.freeze([
+    { name: 'resourceId', keyPath: 'resourceId', unique: false },
+    { name: 'type', keyPath: 'type', unique: false },
+    { name: 'createdAt', keyPath: 'createdAt', unique: false },
 ]);
 
 function getResourceStore(database, transaction) {
@@ -44,6 +51,15 @@ export function upgradeDatabaseSchema(database, transaction, oldVersion) {
         if (!database.objectStoreNames.contains(PROCESSED_CONTENT_STORE)) {
             const processedStore = database.createObjectStore(PROCESSED_CONTENT_STORE, { keyPath: 'id' });
             processedStore.createIndex('resourceId', 'resourceId', { unique: true });
+        }
+    }
+
+    if (oldVersion < 3) {
+        if (!database.objectStoreNames.contains(LEARNING_OUTPUT_STORE)) {
+            const learningOutputStore = database.createObjectStore(LEARNING_OUTPUT_STORE, { keyPath: 'id' });
+            LEARNING_OUTPUT_INDEXES.forEach(({ name, keyPath, unique }) => {
+                learningOutputStore.createIndex(name, keyPath, { unique });
+            });
         }
     }
 }

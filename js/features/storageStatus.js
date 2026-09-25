@@ -1,5 +1,7 @@
 import { initializeDatabase } from '../storage/indexedDB.js';
 import { resourceRepository } from '../storage/resourceStore.js';
+import { getFlashcardCount } from './flashcardService.js';
+import { onLearningOutputsChanged } from '../core/resourceEvents.js';
 
 function setResourceCount(count) {
     const counter = document.querySelector('[data-stat="resources"]');
@@ -17,10 +19,27 @@ export async function refreshDashboardResourceCount() {
     setResourceCount(await resourceRepository.countResources());
 }
 
+export async function refreshDashboardFlashcardCount() {
+    const counter = document.querySelector('[data-stat="flashcards"]');
+    if (!counter) return;
+    try {
+        const count = await getFlashcardCount();
+        counter.textContent = String(count);
+    } catch {
+        counter.textContent = '0';
+    }
+}
+
+// Reactively update dashboard flashcards stat when outputs change
+onLearningOutputsChanged(() => {
+    void refreshDashboardFlashcardCount();
+});
+
 export async function initializeApplicationStorage() {
     try {
         await initializeDatabase();
         await refreshDashboardResourceCount();
+        await refreshDashboardFlashcardCount();
         document.documentElement.dataset.storageState = 'ready';
         return true;
     } catch (error) {

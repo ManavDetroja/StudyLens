@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.12.0 — 2026-09-25
+
+- Implemented deterministic flashcard generation from existing learning outputs (definitions, questions, concepts) into structured `{ front, back }` flashcard records with full `sourceChunkIds` source traceability.
+- Added `js/processing/flashcardGenerator.js` for pure, deterministic conversion without hallucinated answers or external NLP/AI libraries.
+- Added `js/features/flashcardService.js` for orchestration, persistence in the existing `learningOutputs` store (`type: 'flashcard'`), clean regeneration replacement without duplicates, deck grouping by resource, and resource cleanup.
+- Integrated "Generate flashcards" / "Regenerate flashcards" action, flashcard summary reporting, and deck study shortcut into the Resource Viewer (`js/features/resourceViewer.js`, `index.html`, `js/features/learningOutputView.js`).
+- Built the interactive Flashcard Study Viewer (`js/features/flashcardViewer.js`, `index.html`, `css/components.css`) featuring:
+  - 3D CSS flip animation between question/prompt (front) and answer/explanation (back).
+  - Next and Previous navigation with card progress tracking ("Card X of Y") and animated completion bar.
+  - Full keyboard accessibility: <kbd>Space</kbd> / <kbd>Enter</kbd> to flip, <kbd>←</kbd> and <kbd>→</kbd> to navigate cards, <kbd>Escape</kbd> to close.
+  - Source chunk traceability badge display on cards.
+- Transformed the Flashcards navigation section (`#flashcards`, `js/features/flashcardPage.js`) into an active deck collection page with resource-grouped cards, card counts, previews, and "Study deck" launchers.
+- Connected the Dashboard Flashcards stat card (`storageStatus.js`) to durable local storage with reactive event updates.
+- Added 21 comprehensive unit, service, and DOM component tests in `tests/flashcards.test.mjs` (177 tests total, 176 passed, 0 failed, 1 skipped).
+
+## 0.11.0 — 2026-09-23
+
+- Built the complete Learning Outputs user experience in the Resource Viewer without external frameworks or AI APIs.
+- Added `js/features/learningOutputView.js` for safe DOM rendering (textContent only) of categorized study aids:
+  - Extractive Summary card with source traceability badge.
+  - Key Concepts chip list with term labels, frequency scores, and grounded chunk badges.
+  - Definitions section with term and definition separation.
+  - Numbered Study Questions list linked to source chunks.
+- Handled empty, loading (spinner), and error states directly within the modal.
+- Improved generation UX in `js/features/resourceViewer.js`: concurrency guard against simultaneous generation, button state transitions ("Generate learning outputs" → "Generating…" → "Regenerate learning outputs"), disable state for empty resources, and toast feedback.
+- Updated `index.html` and `css/components.css` with structured output containers, responsive card layouts, and dialog scrollability (`max-height: calc(100dvh - 2.5rem); overflow-y: auto`).
+- Added 14 unit and integration tests in `tests/learningOutputView.test.mjs` (155 tests passing across entire suite).
+
+## 0.10.0 — 2026-09-23
+
+- Implemented the deterministic Learning Output Engine without external AI APIs or LLMs.
+- Added pure deterministic analysis algorithms in `js/processing/contentAnalysis.js`: sentence segmentation with offset tracking, chunk ID overlap calculation, key concept extraction with stopword filtering (`js/processing/stopwords.js`), definition pattern recognition ("is", "means", "refers to", "defined as"), grounded question generation, and extractive summarization.
+- Added `LearningOutputGenerator` in `js/processing/learningOutputGenerator.js` to convert content analysis results into validated `summary`, `concept`, `definition`, and `question` records with mandatory `sourceChunkIds`.
+- Added `learningOutputService` in `js/features/learningOutputService.js` for orchestration, summary reporting, deduplication on regeneration, and resource cleanup.
+- Integrated lightweight UI action ("Generate learning outputs") and outputs summary badge into Resource Viewer (`js/features/resourceViewer.js`, `index.html`, `css/components.css`).
+- Added 15 comprehensive unit and service integration tests in `tests/deterministicLearningOutputs.test.mjs` (142 tests passing across suite).
+
+## 0.9.0 — 2026-09-23
+
+- Established the Learning Output Foundation and persistence layer.
+- Upgraded StudyLensDB to schema version 3, introducing the `learningOutputs` object store with indexes on `resourceId`, `type`, `createdAt`, and multi-entry `sourceChunkIds`.
+- Added `LearningOutput` data model, type definitions, and validation rules in `js/storage/learningOutputValidation.js` and `ts/types.ts`.
+- Implemented `LearningOutputRepository` in `js/storage/learningOutputStore.js` with CRUD methods, resource-specific queries, type queries, and bulk deletion.
+- Added 18 unit tests for schema, validation, and repository operations in `tests/learningOutput.test.mjs`.
+
 ## 0.8.0 — 2026-09-22
 
 - Connected the Day 7 content processing pipeline to persistent storage and the Text Resource workflow.

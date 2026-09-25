@@ -14,6 +14,13 @@ export class ResourceValidationError extends StorageError {
     }
 }
 
+export class LearningOutputValidationError extends StorageError {
+    constructor(message, { code = 'INVALID_LEARNING_OUTPUT', cause } = {}) {
+        super(message, { code, cause });
+        this.name = 'LearningOutputValidationError';
+    }
+}
+
 export function asStorageError(error, message, code = 'STORAGE_ERROR') {
     if (error instanceof StorageError) return error;
     return new StorageError(message, { code, cause: error });

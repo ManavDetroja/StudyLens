@@ -1,6 +1,6 @@
 # StudyLens
 
-StudyLens is a client-side learning workspace that will eventually turn source material into structured study aids. Day 8 integrates the text-only content processing pipeline with the Text Resource workflow, persists normalized and chunked content in IndexedDB (StudyLensDB v2), supports automatic reprocessing on edit, and displays processed status in the resource reader.
+StudyLens is a client-side learning workspace that turns source material into structured study aids. Day 11 builds the complete Learning Outputs user experience in the Resource Viewer for extractive summaries, key concepts, definitions, and questions with source chunk traceability, loading states, and safe regeneration in IndexedDB (StudyLensDB v3).
 
 ## Run locally
 
@@ -8,7 +8,11 @@ Serve the repository root with any local static HTTP server, then open its local
 
 Run the Node checks with:
 
-    node --test tests/routes.test.mjs tests/resourceValidation.test.mjs tests/tagUtils.test.mjs tests/textResourceInput.test.mjs tests/resourceViewer.test.mjs tests/librarySearch.test.mjs tests/textNormalizer.test.mjs tests/contentChunker.test.mjs tests/textAdapter.test.mjs tests/contentProcessingPipeline.test.mjs tests/processingIntegration.test.mjs tests/storage.browser.test.mjs
+    node --test tests/routes.test.mjs tests/resourceValidation.test.mjs tests/tagUtils.test.mjs tests/textResourceInput.test.mjs tests/resourceViewer.test.mjs tests/librarySearch.test.mjs tests/textNormalizer.test.mjs tests/contentChunker.test.mjs tests/textAdapter.test.mjs tests/contentProcessingPipeline.test.mjs tests/processingIntegration.test.mjs tests/learningOutput.test.mjs tests/deterministicLearningOutputs.test.mjs tests/learningOutputView.test.mjs tests/storage.browser.test.mjs
+
+Or run all Node test suites:
+
+    node --test tests/*.test.mjs
 
 Node does not provide native IndexedDB in this project environment, so the storage browser test is reported as skipped there. To run the native IndexedDB CRUD suite, serve the repository root and open tests/storage.browser.html in a modern browser. It uses a uniquely named temporary test database and deletes it after completion.
 
@@ -27,21 +31,25 @@ Node does not provide native IndexedDB in this project environment, so the stora
 - Centralized tag normalization and validation, dynamic tag-based filtering in the Library, and enhanced resource viewer metadata.
 - End-to-end processing for Text Resources: automatically extracts, normalizes, chunks, and persists processed content in IndexedDB (`processedContent` store).
 - Automatic reprocessing on resource edit that replaces stale processed data while preserving resource ID and creation date.
-- Clean deletion cleanup: removing a resource also cleans up its associated processed content.
+- Clean deletion cleanup: removing a resource also cleans up its associated processed content and learning outputs.
+- StudyLensDB schema version 3: durable `learningOutputs` store with indexes on `resourceId`, `type`, `createdAt`, and `sourceChunkIds` (multiEntry).
+- Deterministic learning output engine: generates extractive summaries, key concepts, pattern-based definitions, and grounded questions without external AI or LLMs.
+- Full source traceability: every generated output references originating `sourceChunkIds` linking back to source chunks.
+- Resource reader learning experience: complete categorized UI displaying Extractive Summaries, Key Concepts with frequency scores, Definitions with clear term separation, and numbered Study Questions, all with source traceability badges, loading spinners, empty states, and safe deduplicated regeneration.
 
 ## Project layout
 
     css/             Design tokens, layout, components, and responsive rules
     js/core/         Route metadata and future shared application primitives
     js/ui/           Navigation and modal UI behaviours
-    js/features/     Feature-level UI placeholders and processing integration
-    js/storage/      Versioned IndexedDB connection, schema, validation, resource store, and processed store
-    js/processing/   Local source adapters, normalization, chunking, and pipeline
+    js/features/     Feature-level UI logic, processing integration, learning output service, and learning output view
+    js/storage/      Versioned IndexedDB connection, schema, validation, resource store, processed store, and learning output store
+    js/processing/   Source adapters, normalization, chunking, stopwords, content analysis, and deterministic output generator
     tests/           Node checks and a self-cleaning native-browser storage suite
-    ts/              Minimal domain types for future storage and processing
+    ts/              Minimal domain types for storage, processing, and learning outputs
 
 See ARCHITECTURE.md for navigation and responsive-design decisions, and TASKS.md for planned work.
 
 ## Current limitations
 
-Only manual text resources are available in the UI. PDF, image, and video adapters, import, extraction, OCR, AI, notes, flashcards, quizzes, analytics, authentication, and backend services remain intentionally out of scope.
+Only manual text resources and deterministic learning output generation are active today. External AI/LLM integration, flashcard review algorithms, quiz generation, notes, PDF, image, and video adapters, OCR, analytics, authentication, and backend services remain intentionally out of scope.

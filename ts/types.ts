@@ -75,3 +75,53 @@ export interface ProcessedContent {
     createdAt: string;
     updatedAt: string;
 }
+
+/** Supported learning output categories (Day 9 foundation). */
+export type LearningOutputType =
+    | 'summary'
+    | 'notes'
+    | 'concept'
+    | 'definition'
+    | 'question'
+    | 'flashcard'
+    | 'quiz';
+
+/** Extensible, non-sensitive metadata for learning outputs. */
+export type LearningOutputMetadata = Record<string, unknown>;
+
+/**
+ * Persisted learning output record in IndexedDB (Day 9).
+ * Captures derived learning artifacts (summaries, notes, questions, etc.)
+ * with source chunk traceability back to processed content.
+ */
+export interface LearningOutput {
+    /** Unique record ID (UUID). Immutable after creation. */
+    id: string;
+    /** The parent resource ID. Immutable after creation. */
+    resourceId: string;
+    /** Output category. */
+    type: LearningOutputType;
+    /** String text or structured payload representing the learning output. */
+    content: string | Record<string, unknown>;
+    /** Traceability: references chunk indices or identifiers in the source processed content. */
+    sourceChunkIds: (string | number)[];
+    /** Extensible metadata (e.g. model, difficulty, keywords). */
+    metadata: LearningOutputMetadata;
+    /** ISO 8601 timestamps stored as UTC strings. */
+    createdAt: string;
+    updatedAt: string;
+}
+
+/** Structured payload for flashcard learning outputs (Day 12). */
+export interface FlashcardContent {
+    front: string;
+    back: string;
+}
+
+/** Grouped flashcard deck collection for review (Day 12). */
+export interface FlashcardDeck {
+    resourceId: string;
+    title: string;
+    flashcards: LearningOutput[];
+    count: number;
+}

@@ -74,8 +74,9 @@
                     <div class="empty-state page-empty"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></svg></span><h2>No notes yet</h2><p>Notes will appear here once the note workspace is introduced.</p><button class="button button-secondary" type="button" data-feature-action="notes">Create a note</button></div>
                 </section>
                 <section class="page-view" id="flashcards" data-page="flashcards" aria-labelledby="flashcards-heading" hidden>
-                    <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Active recall</p><h1 id="flashcards-heading">Flashcards</h1><p class="lead">Build a focused deck from the concepts worth remembering.</p></div><button class="button button-primary" type="button" data-feature-action="flashcards">Create flashcards</button></div>
-                    <div class="empty-state page-empty"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m8 12 2.5 2.5L16 9"/></svg></span><h2>No flashcards yet</h2><p>Flashcard creation and review will be available after processing tools are added.</p><button class="button button-secondary" type="button" data-feature-action="flashcards">Create flashcards</button></div>
+                    <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Active recall</p><h1 id="flashcards-heading">Flashcards</h1><p class="lead">Build confidence and test your recall through generated flashcard decks.</p></div><button class="button button-primary" type="button" data-flashcards-go-library>View library to generate</button></div>
+                    <div class="empty-state page-empty" data-flashcards-empty><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m8 12 2.5 2.5L16 9"/></svg></span><h2>No flashcard decks yet</h2><p>Generate study aids and flashcards from any text resource in your library to start reviewing.</p><button class="button button-secondary" type="button" data-flashcards-go-library>Go to library</button></div>
+                    <div class="flashcard-deck-list" data-flashcards-decks hidden></div>
                 </section>
                 <section class="page-view" id="quizzes" data-page="quizzes" aria-labelledby="quizzes-heading" hidden>
                     <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Knowledge checks</p><h1 id="quizzes-heading">Quizzes</h1><p class="lead">Use questions and feedback to check what has stuck.</p></div><button class="button button-primary" type="button" data-feature-action="quizzes">Create quiz</button></div>
@@ -122,13 +123,65 @@
             <div class="resource-detail-meta"><span class="badge resource-type" data-resource-viewer-type>text</span><span class="resource-status" data-resource-viewer-status>completed</span><span data-resource-viewer-date>Created today</span><span data-resource-viewer-updated hidden></span><span class="resource-source" data-resource-viewer-source hidden></span><span class="badge resource-processed-badge" data-resource-viewer-processed hidden></span></div>
             <section aria-labelledby="resource-viewer-tags-heading"><h3 id="resource-viewer-tags-heading">Tags</h3><p class="form-helper" data-resource-viewer-no-tags>No tags added.</p><ul class="resource-tags" data-resource-viewer-tags></ul></section>
             <section aria-labelledby="resource-viewer-content-heading"><h3 id="resource-viewer-content-heading">Content</h3><pre class="resource-content" data-resource-viewer-content></pre></section>
+            <section class="resource-learning-outputs" aria-labelledby="resource-viewer-outputs-heading" data-resource-viewer-outputs-section>
+                <div class="learning-outputs-header">
+                    <h3 id="resource-viewer-outputs-heading">Learning outputs</h3>
+                    <span class="badge resource-outputs-badge" data-resource-viewer-outputs-badge hidden></span>
+                </div>
+                <div class="resource-outputs-summary" data-resource-viewer-outputs-summary hidden></div>
+                <div class="resource-outputs-container" data-resource-viewer-outputs-container></div>
+            </section>
         </div>
-        <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
+        <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
     </dialog>
     <dialog class="modal confirm-dialog" id="delete-resource-dialog" aria-labelledby="delete-resource-title" aria-describedby="delete-resource-description" data-dialog>
         <div class="modal-header"><div><p class="eyebrow">Delete resource</p><h2 id="delete-resource-title">Delete this resource?</h2></div><button class="icon-button" type="button" aria-label="Close delete confirmation" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
         <p id="delete-resource-description">This will permanently remove the resource from StudyLens on this device.</p>
         <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-dialog-close>Cancel</button><button class="button button-danger" type="button" data-delete-resource-confirm>Delete resource</button></div>
+    </dialog>
+    <dialog class="modal flashcard-viewer-dialog" id="flashcard-viewer-dialog" aria-labelledby="flashcard-viewer-title" data-dialog>
+        <div class="modal-header">
+            <div>
+                <p class="eyebrow">Study session</p>
+                <h2 id="flashcard-viewer-title" data-flashcard-deck-title>Flashcards</h2>
+            </div>
+            <button class="icon-button" type="button" aria-label="Close flashcard viewer" data-dialog-close>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <div class="flashcard-viewer-body">
+            <div class="flashcard-progress-bar-container" aria-hidden="true">
+                <div class="flashcard-progress-bar" data-flashcard-progress-bar style="width: 0%;"></div>
+            </div>
+            <div class="flashcard-meta-bar">
+                <span class="flashcard-counter" data-flashcard-counter aria-live="polite">Card 1 of 1</span>
+                <span class="badge flashcard-source-badge" data-flashcard-source-badge hidden></span>
+            </div>
+            <div class="flashcard-perspective">
+                <div class="flashcard-card" data-flashcard-card tabindex="0" role="button" aria-label="Flashcard. Click or press Space to flip between question and answer.">
+                    <div class="flashcard-face flashcard-front">
+                        <span class="flashcard-label">Front</span>
+                        <p class="flashcard-text" data-flashcard-front></p>
+                        <span class="flashcard-hint">Click or press Space to flip</span>
+                    </div>
+                    <div class="flashcard-face flashcard-back">
+                        <span class="flashcard-label">Back</span>
+                        <p class="flashcard-text" data-flashcard-back></p>
+                        <span class="flashcard-hint">Click or press Space to flip back</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flashcard-keyboard-hints" aria-hidden="true">
+                <span><kbd>Space</kbd> / <kbd>Enter</kbd> Flip</span>
+                <span><kbd>←</kbd> Previous</span>
+                <span><kbd>→</kbd> Next</span>
+            </div>
+        </div>
+        <div class="modal-footer dialog-actions flashcard-viewer-actions">
+            <button class="button button-secondary" type="button" data-flashcard-prev aria-label="Previous card">Previous</button>
+            <button class="button button-primary" type="button" data-flashcard-flip>Flip card</button>
+            <button class="button button-secondary" type="button" data-flashcard-next aria-label="Next card">Next</button>
+        </div>
     </dialog>
     <div class="toast" role="status" aria-live="polite" aria-atomic="true" hidden data-toast></div>
     <script src="js/app.js" type="module"></script>

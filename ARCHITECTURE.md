@@ -57,12 +57,13 @@ The UI never opens IndexedDB directly. js/features/storageStatus.js coordinates 
 #### Database schema
 
 - Database: StudyLensDB
-- Schema version: 2
+- Schema version: 3
 - Object stores:
   - `resources`, keyed by the immutable Resource id (non-unique indexes: type, createdAt, updatedAt, and status)
   - `processedContent`, keyed by UUID id (unique index: resourceId)
+  - `learningOutputs`, keyed by UUID id (indexes: resourceId, type, createdAt, and sourceChunkIds with multiEntry: true)
 
-The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, and instant lookup/replacement of processed content by resourceId.
+The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, and querying learning outputs by resource, type, creation date, or source chunk.
 
 ### Storage modules
 
@@ -71,10 +72,12 @@ The indexes support resource-type views, processing queues, chronological listin
 - js/storage/resourceValidation.js owns resource creation, UUID generation, field validation, and immutable-field checks.
 - js/storage/resourceStore.js exposes the Resource repository API and converts native requests into clean promises.
 - js/storage/processedContentStore.js exposes the ProcessedContent repository API for durable processed content storage.
+- js/storage/learningOutputValidation.js owns learning output validation, UUID generation, and immutable-field checks.
+- js/storage/learningOutputStore.js exposes LearningOutputRepository for durable study aids storage.
 
 ### Migration strategy
 
-Schema changes increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Version 2 introduced the `processedContent` store with a unique `resourceId` index while preserving all existing version 1 data.
+Schema changes increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Version 2 introduced the `processedContent` store with a unique `resourceId` index. Version 3 introduced the `learningOutputs` store with `resourceId`, `type`, `createdAt`, and multi-entry `sourceChunkIds` indexes while preserving all existing data.
 
 ### Resource model
 
@@ -84,7 +87,7 @@ Manually entered text uses source manual://text-entry, status completed, and met
 
 ## Current limitations
 
-Only manually entered text resources can be created in the UI. Text resources now have an end-to-end processing foundation with persistent storage, retrieval, and viewer integration. Basic search, filtering (by type, status, and tag), and sorting are available in the Library, but advanced search (fuzzy, semantic, AI-powered) is planned for V3. PDF, image, and video adapters; parsing; OCR; notes; flashcards; quizzes; analytics; and AI capabilities remain later work.
+Only manually entered text resources can be created in the UI. Text resources have an end-to-end processing foundation with persistent storage, retrieval, and deterministic learning output generation (extractive summaries, key concepts, definitions, and questions). All generation is pure, client-side, and deterministic—no external AI or LLM API is used. Basic search, filtering (by type, status, and tag), and sorting are available in the Library, but advanced search (fuzzy, semantic, AI-powered) is planned for V3. PDF, image, and video adapters; parsing; OCR; notes; flashcards; quizzes; analytics; and AI capabilities remain later work.
 
 ## Library search and filtering (Day 5)
 
@@ -156,3 +159,101 @@ Day 8 connects the Day 7 content-processing pipeline to persistent storage and t
 - Processing lifecycle & errors: The original user text remains intact. If processing fails, the original resource is preserved, its status is marked as `failed` with failure details in metadata, and stale processed data is not returned.
 - Viewer integration: The resource reader retrieves processed content via `getProcessedContent(id)` and displays a lightweight badge indicator (e.g. `X chunks processed`). When a resource is deleted, related processed content is automatically cleaned up.
 - Library integration: Library search, type/status/tag filtering, and sorting continue to function seamlessly.
+
+## Learning output foundation (Day 9)
+
+Day 9 establishes the persistence foundation for study aids and learning outputs, decoupling generation from storage:
+
+    Processed Content
+      ↓
+    Learning Output Foundation
+      ↓
+    StudyLensDB v3 (learningOutputs store)
+
+- js/storage/learningOutputValidation.js validates `LearningOutput` records: id, resourceId, type ('summary' | 'concept' | 'definition' | 'question' | 'flashcard' | 'quiz'), content (string or structured object), sourceChunkIds (array of string or number chunk identifiers), metadata, createdAt, and updatedAt.
+- js/storage/learningOutputStore.js implements `LearningOutputRepository` for the `learningOutputs` object store in StudyLensDB (schema version 3). Indexes include `resourceId`, `type`, `createdAt`, and `sourceChunkIds` (multiEntry).
+- Traceability: Mandatory `sourceChunkIds` on all learning outputs maintain explicit linkages back to the processed chunks from which they were derived.
+
+## Deterministic learning output engine (Day 10)
+
+Day 10 implements an automated, deterministic learning output engine that extracts study aids without AI:
+
+    Processed Content (NormalizedContent snapshot)
+      ↓
+    Content Analysis (stopwords, sentence segmentation, frequency scoring, definition pattern detection, question generation, extractive summary)
+      ↓
+    Learning Output Generator (generateLearningOutputs)
+      ↓
+    Learning Output Service (generateLearningOutputsForResource, getLearningOutputsSummaryForResource, clearLearningOutputsForResource)
+      ↓
+    Learning Outputs (persisted in learningOutputs store via LearningOutputRepository)
+      ↓
+    Resource Viewer (summary counts and on-demand "Generate learning outputs" trigger)
+
+### Content analysis algorithms
+
+- js/processing/stopwords.js provides a standard list of English stopwords used to filter common words during concept scoring.
+- js/processing/contentAnalysis.js provides pure, deterministic analysis functions:
+  - Sentence segmentation (`splitSentences`): Splits text on sentence boundaries (`. `, `! `, `? `, `\n\n`) while tracking source character offsets.
+  - Chunk mapping (`findOverlappingChunkIds`): Determines which chunk IDs overlap a given text span based on character offsets.
+  - Concept extraction (`extractKeyConcepts`): Identifies meaningful single words and multi-word terms using term frequency, capitalized title hints, and stopword exclusion. Scores reflect term prominence without claiming "AI confidence".
+  - Definition extraction (`extractDefinitions`): Recognizes clear syntactic patterns such as "X is Y", "X refers to Y", "X means Y", and "X is defined as Y".
+  - Question generation (`generateQuestions`): Synthesizes grounded questions directly from extracted definitions and concepts ("What is X?", "What does X mean?", "How does X work?", "Why is X important?").
+  - Extractive summarization (`generateExtractiveSummary`): Selects prominent sentences based on concept density and position while strictly preserving source text and order.
+
+### Learning output generation & service orchestration
+
+- js/processing/learningOutputGenerator.js converts content analysis outputs into validated `LearningOutput` records.
+  - Supported Day 10 types: `summary`, `concept`, `definition`, `question`.
+  - Deferred types: `flashcard` and `quiz` (planned for future milestones).
+  - Every output record includes `sourceChunkIds` for end-to-end traceability.
+- js/features/learningOutputService.js orchestrates generation, retrieval, and cleanup:
+  - `generateLearningOutputsForResource(resourceId)`: Retrieves processed content, analyzes text, generates outputs, removes previous outputs for the resource to prevent duplicates, and persists new outputs.
+  - `getLearningOutputsSummaryForResource(resourceId)`: Returns aggregated counts and summary status.
+  - `clearLearningOutputsForResource(resourceId)`: Deletes all outputs for a resource.
+  - Automatic cleanup: Resource deletion automatically deletes associated learning outputs.
+- UI integration: The Resource Viewer includes an on-demand "Generate learning outputs" button and displays a lightweight summary of generated items (summary status, concepts, definitions, questions).
+- Deterministic guarantee: Zero external AI APIs, LLMs, or external NLP libraries are used. All generation is pure, client-side, and reproducible.
+
+## Learning outputs reader UI (Day 11)
+
+- js/features/learningOutputView.js renders categorized study aids into the Resource Viewer modal using textContent only.
+- Source traceability badges format chunk indices into human-friendly grounded labels (e.g. `Chunk 1`, `Chunks 1, 2`).
+- Handles empty, loading (spinner), and error states directly in the modal.
+- Concurrency guard in js/features/resourceViewer.js prevents duplicate generation requests.
+- Dialog scrolling (`max-height: calc(100dvh - 2.5rem); overflow-y: auto`) prevents viewport overflow on long content.
+
+## Interactive flashcards feature (Day 12)
+
+Day 12 introduces the first complete active recall study feature for StudyLens:
+
+    Processed Content
+      ↓
+    Learning Outputs (Definitions, Questions, Concepts)
+      ↓
+    Flashcard Generator (js/processing/flashcardGenerator.js)
+      ↓
+    Flashcard Service (js/features/flashcardService.js)
+      ↓
+    StudyLensDB v3 (learningOutputs store, type: 'flashcard')
+      ↓
+    Flashcards Page (js/features/flashcardPage.js) & Flashcard Viewer (js/features/flashcardViewer.js)
+
+### Generation without fabrication
+- Pure, deterministic conversion of existing verified study aids into `{ front, back }` cards:
+  - Definitions → `front: term`, `back: definition`
+  - Questions → `front: question`, `back: "Review concept: {relatedTerm}"` (grounded factual referral, no invented answers)
+  - Concepts → `front: "What is {term}?"`, `back: "Key concept identified in this resource."`
+- Every generated flashcard strictly preserves `sourceChunkIds` for end-to-end source traceability.
+- Generator interface is clean and isolated for seamless future AI replacement.
+
+### Storage & service
+- Flashcards are stored as `LearningOutput` records with `type: 'flashcard'` and structured `{ front, back }` content in the existing `learningOutputs` store. No schema version bump or migration was needed.
+- `js/features/flashcardService.js` orchestrates generation, persistence, deduplication on regeneration (clearing old flashcards before inserting new ones), deck grouping by resource, and deletion.
+
+### User experience
+- **Resource Viewer**: Includes a dedicated "Generate flashcards" / "Regenerate flashcards" button, real-time flashcard count in the summary indicator, and a flashcard preview section with a direct "Study deck" launcher.
+- **Flashcards Page**: Replaces the static placeholder with an active deck collection page (#flashcards) showing deck cards grouped by source resource, card count badges, previews, and "Study deck" buttons.
+- **Flashcard Study Viewer**: Native dialog with 3D CSS card flip, Next/Previous card navigation, "Card X of Y" progress counter, animated completion bar, source chunk traceability badge, and full keyboard interaction (<kbd>Space</kbd>/<kbd>Enter</kbd> to flip, <kbd>←</kbd> and <kbd>→</kbd> to navigate, <kbd>Escape</kbd> to close).
+- **Dashboard**: Live flashcard stat counter wired to storage and reactively updated via `learningoutputschanged` events.
+- **Safe rendering**: All dynamic text content is inserted via `textContent`; zero `innerHTML` or `eval`.

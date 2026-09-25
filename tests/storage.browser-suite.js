@@ -2,6 +2,7 @@ import { DatabaseConnection } from '../js/storage/indexedDB.js';
 import { createTextResourceInput, createTextResourceUpdate } from '../js/features/textResourceInput.js';
 import { ResourceRepository } from '../js/storage/resourceStore.js';
 import { ProcessedContentRepository } from '../js/storage/processedContentStore.js';
+import { LearningOutputRepository } from '../js/storage/learningOutputStore.js';
 import { processAndStore, getProcessedContent, deleteProcessedContent } from '../js/features/processingIntegration.js';
 
 function assert(condition, message) {
@@ -48,6 +49,9 @@ export async function runStorageBrowserSuite() {
     const processedRepository = new ProcessedContentRepository({
         database: connection,
     });
+    const outputRepository = new LearningOutputRepository({
+        database: connection,
+    });
     const results = [];
 
     try {
@@ -62,7 +66,13 @@ export async function runStorageBrowserSuite() {
         const processedStore = database.transaction('processedContent', 'readonly').objectStore('processedContent');
         assert(processedStore.indexNames.contains('resourceId'), 'Missing processedContent index: resourceId.');
         assert(processedStore.index('resourceId').unique === true, 'resourceId index must be unique.');
-        results.push('Database schema and indexes created (v2 with processedContent)');
+
+        assert(database.objectStoreNames.contains('learningOutputs'), 'The learningOutputs store was not created.');
+        const outputStore = database.transaction('learningOutputs', 'readonly').objectStore('learningOutputs');
+        ['resourceId', 'type', 'createdAt'].forEach((index) => {
+            assert(outputStore.indexNames.contains(index), 'Missing learningOutputs index: ' + index + '.');
+        });
+        results.push('Database schema and indexes created (v3 with learningOutputs)');
 
         const created = await repository.createResource(createTextResourceInput({
             title: ' Storage test resource ',
@@ -135,6 +145,31 @@ export async function runStorageBrowserSuite() {
         assert(await deleteProcessedContent(created.id, processedRepository), 'Delete processed content failed.');
         assert(await processedRepository.getByResourceId(created.id) === null, 'Processed content was still available after deletion.');
         results.push('Processed content deletion and cleanup');
+
+        // Day 9: Learning outputs creation, indexed queries, and cleanup
+        const outputSummary = await outputRepository.createLearningOutput({
+            resourceId: created.id,
+            type: 'summary',
+            content: 'Summary of storage test resource.',
+            sourceChunkIds: [0],
+        });
+        const outputQuestion = await outputRepository.createLearningOutput({
+            resourceId: created.id,
+            type: 'question',
+            content: 'What does this resource test?',
+            sourceChunkIds: [0],
+        });
+        assert(outputSummary.resourceId === created.id, 'Learning output resourceId mismatch.');
+        assert((await outputRepository.getLearningOutput(outputSummary.id)) !== null, 'Output could not be retrieved by ID.');
+        assert((await outputRepository.getLearningOutputsByResourceId(created.id)).length === 2, 'Resource outputs count mismatch.');
+        assert((await outputRepository.getLearningOutputsByType('summary')).length === 1, 'Summary type count mismatch.');
+        results.push('Learning output creation and indexed queries');
+
+        // Delete learning outputs for resource
+        const deletedOutputsCount = await outputRepository.deleteLearningOutputsByResourceId(created.id);
+        assert(deletedOutputsCount === 2, 'Expected 2 deleted learning outputs.');
+        assert((await outputRepository.getLearningOutputsByResourceId(created.id)).length === 0, 'Outputs remained after deletion.');
+        results.push('Learning output cascade deletion');
 
         assert(await repository.deleteResource(created.id), 'Delete did not report success.');
         assert(await repository.getResource(created.id) === null, 'Deleted resource was still available.');

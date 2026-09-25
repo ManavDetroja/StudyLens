@@ -66,3 +66,35 @@ When a text resource is created or edited:
 - Deleting a resource also cleans up associated processed content.
 
 Only TextAdapter is implemented. PDF, image/OCR, video/transcript, and AI generation remain planned future milestones.
+
+## Learning output foundation (Day 9)
+
+StudyLensDB is upgraded to schema version 3, adding the `learningOutputs` object store with indexes on `resourceId`, `type`, `createdAt`, and `sourceChunkIds` (multiEntry).
+
+The `LearningOutput` data model establishes a standardized schema for study aids:
+- Fields: `id`, `resourceId`, `type`, `content`, `sourceChunkIds`, `metadata`, `createdAt`, `updatedAt`.
+- Supported types: `summary`, `concept`, `definition`, `question`, `flashcard`, and `quiz`.
+- Mandatory chunk traceability via `sourceChunkIds`.
+- Persistence managed through `LearningOutputRepository`.
+
+## Deterministic learning output engine (Day 10)
+
+Day 10 introduces the deterministic learning output engine that automatically produces study aids without AI:
+Processed Content → Content Analysis → Learning Output Generator → Learning Outputs.
+
+- **Content Analysis**:
+  - Deterministic sentence segmentation and character offset mapping to chunks.
+  - Frequency scoring with stopword filtering for key concepts (unigrams and multi-word terms).
+  - Obvious pattern matching for definitions ("X is Y", "X refers to Y", "X means Y", "X is defined as Y").
+  - Grounded question generation based on extracted concepts and definitions.
+  - Extractive summarization selecting salient sentences while strictly preserving source wording and order.
+- **Output Types Generated in Day 10**:
+  - `summary`: extractive overview with original wording.
+  - `concept`: key terms with deterministic frequency scores.
+  - `definition`: term and definition pairs matching syntactic patterns.
+  - `question`: study questions grounded in source content.
+  - Note: `flashcard` and `quiz` generation remain deferred.
+- **Source Traceability**: Every generated output references the chunk IDs (`sourceChunkIds`) where the information originated.
+- **Regeneration**: Running generation again replaces previous outputs for the resource, preventing duplicate or stale records.
+- **User Interface**: The Resource Viewer contains an on-demand "Generate learning outputs" button and shows an outputs summary badge.
+- **Pure Client-Side**: No external AI APIs, LLMs, API keys, or external NLP libraries are used.

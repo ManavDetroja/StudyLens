@@ -10,7 +10,11 @@
 - Day 6: Centralized tag system, tag-based Library filtering, resource metadata improvements. Complete.
 - Day 7: Text-only content-processing foundation: normalization, chunking, adapter contract, pipeline, and tests. Complete.
 - Day 8: Processing integration & milestone completion: end-to-end Text Resource processing, StudyLensDB v2 (`processedContent` store), reprocessing on edit, failure handling, viewer indicator, and cleanup. Complete.
-- Next: Source adapters for non-text material (e.g., PDF upload and metadata) or initial study aid generation.
+- Day 9: Learning Output foundation & persistence: StudyLensDB v3 (`learningOutputs` store), LearningOutput model, validation, repository, and tests. Complete.
+- Day 10: Deterministic learning output engine: content analysis, extractive summary, concept extraction, definition extraction, question generation, source chunk traceability, and viewer integration. Complete.
+- Day 11: Learning Outputs UI & Experience: complete user experience in Resource Viewer for Summary, Key Concepts, Definitions, and Questions with source traceability, loading states, error states, and safe regeneration. Complete.
+- Day 12: Flashcards feature: deterministic generation from definitions, questions, and concepts; persistence in learningOutputs store; deck collection page; and interactive 3D flip-card study viewer with keyboard navigation. Complete.
+- Next: Day 13 — Quiz challenge practice views grounded in generated questions/definitions or source adapters for non-text material.
 
 ## V2 — Content processing
 
@@ -20,7 +24,7 @@
 ## V3 — Learning intelligence
 
 - Searchable knowledge library.
-- Flashcard review and quiz experiences.
+- Quiz practice sessions and spaced repetition review.
 - Analytics, spaced repetition, and knowledge-graph capabilities.
 
-Only the Day 8 text-processing pipeline and persistent storage are implemented now. Additional V2 and all V3 items are plans, not active features.
+Only the Day 12 text-processing pipeline, persistent storage, deterministic learning output engine, structured reader UI, and flashcards study system are implemented now. Additional V2 and all V3 items are plans, not active features.
