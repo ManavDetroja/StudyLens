@@ -22,6 +22,8 @@ import {
 import { deleteAttemptsForResource } from './quizAttemptService.js';
 import { openQuizPlayer } from './quizPlayer.js';
 import { renderLearningOutputs } from './learningOutputView.js';
+import { deleteNotesForResource } from './noteService.js';
+import { openNoteEditor } from './noteEditor.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
@@ -381,6 +383,17 @@ export function initResourceViewer() {
         }
     });
 
+    document.querySelector('[data-resource-viewer-add-note]')?.addEventListener('click', () => {
+        if (!activeResource) return;
+        const res = activeResource;
+        closeDialog(viewerDialog());
+        void openNoteEditor({
+            resourceId: res.id,
+            title: 'Notes — ' + res.title,
+            tags: Array.isArray(res.tags) ? [...res.tags] : [],
+        });
+    });
+
     document.querySelector('[data-resource-viewer-edit]')?.addEventListener('click', () => {
         if (!activeResource || activeResource.type !== 'text') return;
         closeDialog(viewerDialog());
@@ -432,6 +445,12 @@ export function initResourceViewer() {
                 await deleteAttemptsForResource(pendingDeleteId);
             } catch (attemptCleanupError) {
                 console.warn('StudyLens could not clean up quiz attempts for deleted resource.', attemptCleanupError);
+            }
+
+            try {
+                await deleteNotesForResource(pendingDeleteId);
+            } catch (noteCleanupError) {
+                console.warn('StudyLens could not clean up notes for deleted resource.', noteCleanupError);
             }
 
             notifyResourcesChanged({ action: 'deleted', resourceId: pendingDeleteId });

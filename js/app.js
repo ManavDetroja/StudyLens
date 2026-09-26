@@ -8,6 +8,8 @@ import { initFlashcardViewer } from './features/flashcardViewer.js';
 import { initQuizPage } from './features/quizPage.js';
 import { initQuizPlayer } from './features/quizPlayer.js';
 import { initAnalyticsPage } from './features/analyticsPage.js';
+import { initNotesPage } from './features/notesPage.js';
+import { initNoteEditor } from './features/noteEditor.js';
 import { initializeApplicationStorage } from './features/storageStatus.js';
 
 async function initApp() {
@@ -17,9 +19,11 @@ async function initApp() {
     initResourceViewer();
     initFlashcardViewer();
     initQuizPlayer();
+    initNoteEditor();
     const storageReady = await initializeApplicationStorage();
     if (storageReady) {
         await initResourceList();
+        initNotesPage();
         initFlashcardPage();
         initQuizPage();
         initAnalyticsPage();

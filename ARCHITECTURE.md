@@ -57,15 +57,16 @@ The UI never opens IndexedDB directly. js/features/storageStatus.js coordinates 
 #### Database schema
 
 - Database: StudyLensDB
-- Schema version: 5
+- Schema version: 6
 - Object stores:
   - `resources`, keyed by the immutable Resource id (non-unique indexes: type, createdAt, updatedAt, and status)
   - `processedContent`, keyed by UUID id (unique index: resourceId)
   - `learningOutputs`, keyed by UUID id (indexes: resourceId, type, createdAt, and sourceChunkIds with multiEntry: true)
   - `quizzes`, keyed by UUID id (indexes: resourceId, createdAt)
   - `quizAttempts`, keyed by UUID id (indexes: quizId, resourceId, completedAt, createdAt)
+  - `notes`, keyed by UUID id (indexes: resourceId, updatedAt, createdAt)
 
-The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, querying learning outputs by resource, type, creation date, or source chunk, fast retrieval/cleanup of quizzes by parent resourceId, and efficient chronological filtering and lookup of quiz attempt histories by quiz or parent resource.
+The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, querying learning outputs by resource, type, creation date, or source chunk, fast retrieval/cleanup of quizzes by parent resourceId, efficient chronological filtering and lookup of quiz attempt histories by quiz or parent resource, and fast retrieval/cleanup and chronological sorting of user notes.
 
 ### Storage modules
 
@@ -351,5 +352,61 @@ Day 14 establishes persistent quiz attempt history and client-side performance a
 - **Safe Retry**: Resets player answers and session in memory; does NOT record empty or partial attempts until the user explicitly re-submits.
 - **Quizzes Page**: Added a direct "History" button on quiz cards to launch the player directly into history mode.
 - **Quiz Analytics Page (`#analytics`)**: Real-time stats grid, recent activity feed with "Retake" shortcuts, empty state guidance, and reactive sync with storage events.
+
+## Notes Workspace (Day 15)
+
+Day 15 establishes the persistent, standalone and resource-linked Notes Workspace in StudyLens without backend services, external frameworks, cloud storage, or AI/LLM APIs:
+
+    UI (Notes Page #notes & Resource Viewer)
+      ↓
+    Note Editor Modal (#note-editor-dialog)
+      ↓
+    Note Service (js/features/noteService.js)
+      ↓
+    StudyLensDB v6 (notes store via NoteRepository in js/storage/noteStore.js)
+      ↓
+    Reactive Events (js/core/resourceEvents.js: noteschanged)
+
+### Storage & Data Model (StudyLensDB v6)
+- Upgraded StudyLensDB from version 5 to 6, adding the dedicated `notes` object store with indexes on `resourceId`, `updatedAt`, and `createdAt`.
+- Validated `Note` schema in `js/storage/noteValidation.js`:
+  - `id`: unique UUID string (immutable).
+  - `resourceId`: nullable string (links note to a Resource, or `null` for standalone notes).
+  - `title`: non-empty string, max 200 characters.
+  - `content`: non-empty plain/lightweight structured string, max 100,000 characters.
+  - `tags`: array of normalized lowercase tag strings.
+  - `metadata`: extensible object.
+  - `createdAt`: ISO 8601 timestamp (immutable).
+  - `updatedAt`: ISO 8601 timestamp (updated on edit).
+- `NoteRepository` (`js/storage/noteStore.js`) provides persistent CRUD, indexed lookups by resource and global listing (sorted by `updatedAt` descending), and cascading cleanup.
+
+### Note Service
+- `js/features/noteService.js` coordinates:
+  - CRUD operations (`createNote`, `getNote`, `getAllNotes`, `getNotesByResource`, `updateNote`, `deleteNote`, `deleteNotesForResource`, `countNotes`).
+  - Event notifications (`notifyNotesChanged` emitting `noteschanged`).
+  - Pure, deterministic local substring search (`searchNotes`) across normalized title, content, and tags.
+  - Resource-based filtering (`filterNotesByResource`) supporting `all`, `standalone` (`resourceId === null`), or specific `resourceId`.
+  - Composed pipeline (`filterAndSearchNotes`).
+
+### User Experience
+- **Notes Workspace (`#notes`)**:
+  - Responsive 3-column grid (`.notes-grid`) collapsing to 2 columns on tablet and 1 column on mobile.
+  - Search toolbar with real-time text input (`[data-notes-search]`), resource filter dropdown (`[data-notes-resource-filter]`), and clear button.
+  - Note cards with title, linked resource badge (if linked), preview text, tag list, formatted update date, and edit/delete actions.
+  - Empty states for both initial zero-note state and zero-match search/filter state.
+- **Note Editor Dialog (`#note-editor-dialog`)**:
+  - Supports creating standalone notes or linking notes to any library resource via dynamically loaded resource dropdown.
+  - Supports editing existing notes, preserving immutable `id` and `createdAt` while updating `updatedAt`.
+  - Client-side validation for title and content, displaying clear error alerts.
+  - Explicit save action on form submit (no keystroke autosave).
+  - Delete Note confirmation dialog (`#delete-note-dialog`) preventing accidental deletion.
+- **Resource Viewer Integration**:
+  - "Add note" action button in `#resource-viewer-dialog` footer pre-populates note title (`Notes — {title}`), resource link, and tags.
+  - Cascading deletion: deleting a parent resource automatically deletes all its associated notes.
+- **Dashboard Stat Counter**:
+  - Live Notes counter (`<strong data-stat="notes">`) updated on app startup and reactively synchronized via `onNotesChanged`.
+- **Strict Safe Rendering**:
+  - All user content rendered strictly via `textContent`, with zero HTML interpretation and verified XSS attack prevention.
+
 
 

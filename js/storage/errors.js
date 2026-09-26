@@ -35,6 +35,13 @@ export class QuizAttemptValidationError extends StorageError {
     }
 }
 
+export class NoteValidationError extends StorageError {
+    constructor(message, { code = 'INVALID_NOTE', cause } = {}) {
+        super(message, { code, cause });
+        this.name = 'NoteValidationError';
+    }
+}
+
 export function asStorageError(error, message, code = 'STORAGE_ERROR') {
     if (error instanceof StorageError) return error;
     return new StorageError(message, { code, cause: error });

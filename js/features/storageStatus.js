@@ -2,7 +2,8 @@ import { initializeDatabase } from '../storage/indexedDB.js';
 import { resourceRepository } from '../storage/resourceStore.js';
 import { getFlashcardCount } from './flashcardService.js';
 import { countQuizzes } from './quizService.js';
-import { onLearningOutputsChanged, onQuizzesChanged } from '../core/resourceEvents.js';
+import { countNotes } from './noteService.js';
+import { onLearningOutputsChanged, onQuizzesChanged, onNotesChanged } from '../core/resourceEvents.js';
 
 function setResourceCount(count) {
     const counter = document.querySelector('[data-stat="resources"]');
@@ -42,6 +43,17 @@ export async function refreshDashboardQuizCount() {
     }
 }
 
+export async function refreshDashboardNoteCount() {
+    const counter = document.querySelector('[data-stat="notes"]');
+    if (!counter) return;
+    try {
+        const count = await countNotes();
+        counter.textContent = String(count);
+    } catch {
+        counter.textContent = '0';
+    }
+}
+
 // Reactively update dashboard flashcards stat when outputs change
 onLearningOutputsChanged(() => {
     void refreshDashboardFlashcardCount();
@@ -52,12 +64,18 @@ onQuizzesChanged(() => {
     void refreshDashboardQuizCount();
 });
 
+// Reactively update dashboard notes stat when notes change
+onNotesChanged(() => {
+    void refreshDashboardNoteCount();
+});
+
 export async function initializeApplicationStorage() {
     try {
         await initializeDatabase();
         await refreshDashboardResourceCount();
         await refreshDashboardFlashcardCount();
         await refreshDashboardQuizCount();
+        await refreshDashboardNoteCount();
         document.documentElement.dataset.storageState = 'ready';
         return true;
     } catch (error) {

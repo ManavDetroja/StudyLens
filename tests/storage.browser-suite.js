@@ -5,6 +5,7 @@ import { ProcessedContentRepository } from '../js/storage/processedContentStore.
 import { LearningOutputRepository } from '../js/storage/learningOutputStore.js';
 import { QuizRepository } from '../js/storage/quizStore.js';
 import { QuizAttemptRepository } from '../js/storage/quizAttemptStore.js';
+import { NoteRepository } from '../js/storage/noteStore.js';
 import { processAndStore, getProcessedContent, deleteProcessedContent } from '../js/features/processingIntegration.js';
 
 function assert(condition, message) {
@@ -60,6 +61,9 @@ export async function runStorageBrowserSuite() {
     const attemptRepository = new QuizAttemptRepository({
         database: connection,
     });
+    const noteRepository = new NoteRepository({
+        database: connection,
+    });
     const results = [];
 
     try {
@@ -90,7 +94,12 @@ export async function runStorageBrowserSuite() {
         ['quizId', 'resourceId', 'completedAt', 'createdAt'].forEach((index) => {
             assert(attemptStore.indexNames.contains(index), 'Missing quizAttempts index: ' + index + '.');
         });
-        results.push('Database schema and indexes created (v5 with quizAttempts)');
+        assert(database.objectStoreNames.contains('notes'), 'The notes store was not created.');
+        const noteStore = database.transaction('notes', 'readonly').objectStore('notes');
+        ['resourceId', 'updatedAt', 'createdAt'].forEach((index) => {
+            assert(noteStore.indexNames.contains(index), 'Missing notes index: ' + index + '.');
+        });
+        results.push('Database schema and indexes created (v6 with notes)');
 
         const created = await repository.createResource(createTextResourceInput({
             title: ' Storage test resource ',
@@ -256,6 +265,35 @@ export async function runStorageBrowserSuite() {
         assert(deletedAttemptsCount === 1, 'Expected 1 deleted attempt.');
         assert((await attemptRepository.getAttemptsByResource(created.id)).length === 0, 'Attempts remained after deletion.');
         results.push('Quiz attempt cascade deletion');
+
+        // Note creation and queries
+        const createdNote = await noteRepository.createNote({
+            resourceId: created.id,
+            title: 'Browser Note',
+            content: 'Test content for note',
+            tags: ['indexeddb', 'browser'],
+        });
+        assert(createdNote.resourceId === created.id, 'Note resourceId mismatch.');
+        assert((await noteRepository.getNote(createdNote.id)) !== null, 'Note could not be retrieved by ID.');
+        assert((await noteRepository.getNotesByResource(created.id)).length === 1, 'Resource notes count mismatch.');
+        assert((await noteRepository.getAllNotes()).length === 1, 'All notes count mismatch.');
+        assert((await noteRepository.countNotes()) === 1, 'Count notes mismatch.');
+        results.push('Note creation and indexed queries');
+
+        // Note update
+        const updatedNote = await noteRepository.updateNote(createdNote.id, {
+            content: 'Updated content for note',
+        });
+        assert(updatedNote.content === 'Updated content for note', 'Updated content mismatch.');
+        assert(updatedNote.id === createdNote.id, 'Note ID must remain immutable.');
+        assert(updatedNote.createdAt === createdNote.createdAt, 'Note createdAt must remain immutable.');
+        results.push('Note update');
+
+        // Delete notes for resource
+        const deletedNotesCount = await noteRepository.deleteNotesByResource(created.id);
+        assert(deletedNotesCount === 1, 'Expected 1 deleted note.');
+        assert((await noteRepository.getNotesByResource(created.id)).length === 0, 'Notes remained after deletion.');
+        results.push('Note cascade deletion');
 
         assert(await repository.deleteResource(created.id), 'Delete did not report success.');
         assert(await repository.getResource(created.id) === null, 'Deleted resource was still available.');

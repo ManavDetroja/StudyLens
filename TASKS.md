@@ -85,13 +85,23 @@
 - [x] Integrate cascading quiz attempt deletion in `js/features/resourceViewer.js` when deleting a parent resource.
 - [x] Add responsive CSS styles for quiz stats chips, attempt history modal list, and analytics cards (`css/components.css`, `css/responsive.css`).
 - [x] Add 24 comprehensive unit, calculation, service, and UI controller tests in `tests/quizAttempts.test.mjs`.
-- [x] Update native IndexedDB browser test suite (`tests/storage.browser-suite.js`) with schema v5 assertions.
+- [x] Upgrade StudyLensDB to schema version 6 with the dedicated `notes` object store and indexes (`resourceId`, `updatedAt`, `createdAt`).
+- [x] Create `Note` and `NoteMetadata` data models, validation schema, and CRUD repository (`NoteRepository` in `js/storage/noteStore.js`).
+- [x] Implement Note domain service (`js/features/noteService.js`) handling CRUD operations, reactive notifications (`noteschanged`), pure deterministic local substring search across title, content, and tags, and resource-based filtering (`all`, `standalone`, or specific `resourceId`).
+- [x] Activate the Notes workspace (`#notes`, `js/features/notesPage.js`, `index.html`) with responsive grid, search toolbar, resource filter dropdown, empty states, and accessible note cards with title, linked badge, preview, tags, and date.
+- [x] Build Note Editor modal (`#note-editor-dialog`, `js/features/noteEditor.js`) supporting creating standalone or linked notes, editing existing notes (preserving immutable `id` and `createdAt`), length validation, and confirmed delete dialog (`#delete-note-dialog`).
+- [x] Connect Resource Viewer with Notes Workspace via "Add note" action pre-populating note title, resource link, and tags.
+- [x] Implement cascading note cleanup in `js/features/resourceViewer.js` when deleting a parent resource.
+- [x] Connect Dashboard Notes stat counter (`storageStatus.js`, `index.html`) with reactive `onNotesChanged` updates.
+- [x] Ensure strict safe rendering (`textContent` exclusively, XSS resistant) for note titles, previews, tags, and badges.
+- [x] Add 24 comprehensive unit, validation, service, event, safe-rendering, and cascading cleanup tests in `tests/notes.test.mjs`.
+- [x] Update native IndexedDB browser test suite (`tests/storage.browser-suite.js`) with schema v6 assertions (18 passed checks).
 
 ## Next
 
-- [ ] Implement Notes workspace, rich text editor, or spaced repetition review scheduling (Day 15+).
+- [ ] Implement spaced repetition review scheduling or multimodal source adapters (Day 16+).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); notes workspace; PDF, image, or video extraction; OCR; PDF parsing; video transcripts; authentication; or backend services have been implemented. Only manually entered text has an active adapter, end-to-end processing pipeline, deterministic learning output generator, structured reader UI, interactive flashcard review engine, deterministic quiz system, and persistent quiz attempt results & analytics today.
+No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; PDF, image, or video extraction; OCR; PDF parsing; video transcripts; authentication; or backend services have been implemented. Only manually entered text has an active adapter, end-to-end processing pipeline, deterministic learning output generator, structured reader UI, interactive flashcard review engine, deterministic quiz system, persistent quiz attempt results & analytics, and persistent notes workspace today.
 

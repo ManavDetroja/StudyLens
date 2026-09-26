@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.15.0 — 2026-09-26
+
+- Implemented the complete, persistent Notes Workspace in StudyLens without backend services, external libraries, cloud storage, or AI/LLM APIs.
+- Upgraded StudyLensDB to schema version 6, introducing the dedicated `notes` object store with indexes on `resourceId`, `updatedAt`, and `createdAt`.
+- Added `js/storage/noteValidation.js` and `js/storage/noteStore.js` with full validation, schema enforcement (immutable `id` and `createdAt`, updating `updatedAt`), and CRUD operations via `NoteRepository`.
+- Added `js/features/noteService.js` coordinating note CRUD operations, event notifications (`noteschanged`), pure deterministic local substring search across title, content, and tags, and resource-based filtering (`all`, `standalone`, or specific `resourceId`).
+- Activated the Notes section (`#notes`, `index.html`, `js/features/notesPage.js`, `css/components.css`, `css/responsive.css`):
+  - Responsive 3-column notes grid (`.notes-grid`) with responsive breakpoints for tablet (2 columns) and mobile (1 column).
+  - Search toolbar with real-time text input (`[data-notes-search]`), resource filter dropdown (`[data-notes-resource-filter]`), and clear button.
+  - Accessible Note cards with titles, linked resource badges, multi-line content previews, tag lists, relative update dates, and edit/delete actions.
+  - Empty states for both initial zero-note state and zero-match search/filter state with clear search action.
+- Built the Note Editor dialog (`#note-editor-dialog`, `js/features/noteEditor.js`) supporting:
+  - Creating standalone notes or linking notes to any library resource via dynamically populated resource selector.
+  - Editing existing notes, preserving original `id` and `createdAt` while updating `updatedAt`.
+  - Explicit save action on form submit with client-side length validations (`NOTE_TITLE_MAX_LENGTH = 200`, `NOTE_CONTENT_MAX_LENGTH = 100000`).
+  - Delete Note confirmation dialog (`#delete-note-dialog`) preventing accidental note deletion.
+- Integrated Resource Viewer with Notes Workspace:
+  - Added "Add note" action button in `#resource-viewer-dialog` footer that pre-populates note title (`Notes — {title}`), resource link, and tags.
+  - Added cascading note cleanup in `js/features/resourceViewer.js`: deleting a parent resource automatically deletes all its associated notes.
+- Connected the live Dashboard Notes stat counter (`<strong data-stat="notes">`, `js/features/storageStatus.js`) with reactive `onNotesChanged` updates.
+- Ensured strict safe rendering: all user note text, titles, and tags render strictly via `textContent`, with zero HTML interpretation and verified XSS attack prevention.
+- Added 24 comprehensive unit, validation, service, event, safe-rendering, and cascading cleanup tests in `tests/notes.test.mjs` (248 tests total across the suite, 247 passing in Node, 1 skipped for browser-only IndexedDB).
+- Updated and verified the native IndexedDB browser test suite (`tests/storage.browser-suite.js`, `tests/storage.browser.html`) with schema v6 assertions (18 passed checks).
+- Verified complete end-to-end functionality via automated headless Chrome CDP browser audit across 14 verification steps.
+
 ## 0.14.0 — 2026-09-26
 
 - Implemented persistent Quiz Attempt Results & Basic Analytics in StudyLens without backend services, external libraries, cloud storage, or AI APIs.

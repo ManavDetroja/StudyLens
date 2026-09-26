@@ -239,4 +239,22 @@
 .analytics-activity-meta { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: var(--color-text-muted); flex-wrap: wrap; }
 .analytics-activity-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
 
+/* Day 15: Notes Workspace Components */
+.notes-toolbar { display: flex; flex-wrap: wrap; gap: 0.875rem; align-items: center; justify-content: space-between; }
+.notes-toolbar .search-field { flex: 1; min-width: 14rem; }
+.notes-toolbar .filter-controls { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.notes-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+.note-card { display: flex; flex-direction: column; justify-content: space-between; min-height: 14rem; padding: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-sm); transition: border-color var(--transition-fast), box-shadow var(--transition-fast); }
+.note-card:hover { border-color: var(--color-border-strong); box-shadow: var(--shadow-md); }
+.note-card-header { display: flex; flex-direction: column; gap: 0.4rem; }
+.note-card-title { margin: 0; font-size: 1.05rem; font-weight: 750; color: var(--color-text); word-break: break-word; line-height: 1.35; }
+.note-resource-badge { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.72rem; }
+.note-card-preview { margin: 0.75rem 0; color: var(--color-text-muted); font-size: 0.875rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
+.note-card-footer { display: flex; flex-direction: column; gap: 0.75rem; margin-top: auto; padding-top: 0.75rem; border-top: 1px solid var(--color-border); }
+.note-card-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+.note-card-date { font-size: 0.78rem; color: var(--color-text-muted); }
+.note-card-actions { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+.button-small { min-height: 2rem; padding: 0.35rem 0.65rem; font-size: 0.78rem; }
+
+
 

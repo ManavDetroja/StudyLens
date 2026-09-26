@@ -50,3 +50,17 @@ export function onQuizAttemptsChanged(listener) {
     return () => resourceEvents.removeEventListener(QUIZ_ATTEMPTS_CHANGED, handler);
 }
 
+const NOTES_CHANGED = 'noteschanged';
+
+export function notifyNotesChanged(detail) {
+    resourceEvents.dispatchEvent(new CustomEvent(NOTES_CHANGED, { detail }));
+}
+
+export function onNotesChanged(listener) {
+    const handler = (event) => listener(event.detail);
+    resourceEvents.addEventListener(NOTES_CHANGED, handler);
+
+    return () => resourceEvents.removeEventListener(NOTES_CHANGED, handler);
+}
+
+

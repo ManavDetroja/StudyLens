@@ -70,8 +70,43 @@
                     <div class="resource-list" data-library-resource-list hidden></div>
                 </section>
                 <section class="page-view" id="notes" data-page="notes" aria-labelledby="notes-heading" hidden>
-                    <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Study notes</p><h1 id="notes-heading">Notes</h1><p class="lead">Keep generated and personal notes alongside the material they explain.</p></div><button class="button button-primary" type="button" data-feature-action="notes">Create note</button></div>
-                    <div class="empty-state page-empty"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></svg></span><h2>No notes yet</h2><p>Notes will appear here once the note workspace is introduced.</p><button class="button button-secondary" type="button" data-feature-action="notes">Create a note</button></div>
+                    <div class="page-intro page-intro-with-action">
+                        <div>
+                            <p class="eyebrow">Study workspace</p>
+                            <h1 id="notes-heading">Notes</h1>
+                            <p class="lead">Capture takeaways, personal summaries, and reflections linked to your study material.</p>
+                        </div>
+                        <button class="button button-primary" type="button" data-note-create-btn>New note</button>
+                    </div>
+                    <div class="library-toolbar notes-toolbar" data-notes-toolbar>
+                        <div class="search-field">
+                            <input type="search" placeholder="Search notes by title, content, or tag…" autocomplete="off" aria-label="Search notes" data-notes-search />
+                        </div>
+                        <div class="filter-controls">
+                            <select aria-label="Filter notes by resource" data-notes-resource-filter>
+                                <option value="all">All notes</option>
+                                <option value="standalone">Standalone notes</option>
+                            </select>
+                            <button class="button button-secondary button-small" type="button" data-notes-clear-filters hidden>Clear filters</button>
+                        </div>
+                    </div>
+                    <div class="empty-state page-empty" data-notes-empty>
+                        <span class="empty-icon">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 13h8M8 17h6"/></svg>
+                        </span>
+                        <h2>No notes yet</h2>
+                        <p>Write your own study notes or create them directly from your library resources.</p>
+                        <button class="button button-secondary" type="button" data-note-create-btn>Create your first note</button>
+                    </div>
+                    <div class="empty-state page-empty" data-notes-no-results hidden>
+                        <span class="empty-icon">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.35-4.35"/></svg>
+                        </span>
+                        <h2>No matching notes</h2>
+                        <p>Try adjusting your search terms or selecting a different resource filter.</p>
+                        <button class="button button-secondary" type="button" data-notes-clear-filters>Clear search</button>
+                    </div>
+                    <div class="notes-grid" data-notes-list hidden></div>
                 </section>
                 <section class="page-view" id="flashcards" data-page="flashcards" aria-labelledby="flashcards-heading" hidden>
                     <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Active recall</p><h1 id="flashcards-heading">Flashcards</h1><p class="lead">Build confidence and test your recall through generated flashcard decks.</p></div><button class="button button-primary" type="button" data-flashcards-go-library>View library to generate</button></div>
@@ -182,7 +217,7 @@
                 <div class="resource-outputs-container" data-resource-viewer-outputs-container></div>
             </section>
         </div>
-        <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
+        <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-add-note>Add note</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
     </dialog>
     <dialog class="modal confirm-dialog" id="delete-resource-dialog" aria-labelledby="delete-resource-title" aria-describedby="delete-resource-description" data-dialog>
         <div class="modal-header"><div><p class="eyebrow">Delete resource</p><h2 id="delete-resource-title">Delete this resource?</h2></div><button class="icon-button" type="button" aria-label="Close delete confirmation" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
@@ -290,6 +325,66 @@
                     <button class="button button-primary" type="button" data-quiz-retry>Take quiz again</button>
                 </div>
             </div>
+        </div>
+    </dialog>
+    <dialog class="modal note-editor-dialog" id="note-editor-dialog" aria-labelledby="note-editor-title" data-dialog>
+        <form id="note-editor-form" novalidate>
+            <input type="hidden" name="id" data-note-id />
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Study workspace</p>
+                    <h2 id="note-editor-title" data-note-editor-title>New note</h2>
+                </div>
+                <button class="icon-button" type="button" aria-label="Close note editor" data-dialog-close>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
+            <p id="note-editor-description" class="form-helper" data-note-editor-description>Capture key takeaways, thoughts, and study notes.</p>
+            <div class="form-stack">
+                <div class="field">
+                    <label for="note-title-input">Title</label>
+                    <input id="note-title-input" name="title" type="text" autocomplete="off" required aria-describedby="note-title-help" data-note-title />
+                    <p class="form-helper" id="note-title-help">Give your note a clear, descriptive title.</p>
+                </div>
+                <div class="field">
+                    <label for="note-resource-select">Associated resource <span class="optional-label">Optional</span></label>
+                    <select id="note-resource-select" name="resourceId" data-note-resource-select aria-describedby="note-resource-help">
+                        <option value="">None (Standalone note)</option>
+                    </select>
+                    <p class="form-helper" id="note-resource-help">Link this note to a resource in your library, or keep it standalone.</p>
+                </div>
+                <div class="field">
+                    <label for="note-content-input">Content</label>
+                    <textarea id="note-content-input" name="content" rows="10" required aria-describedby="note-content-help" data-note-content></textarea>
+                    <p class="form-helper" id="note-content-help">Write your notes, ideas, or summaries as plain text.</p>
+                </div>
+                <div class="field">
+                    <label for="note-tags-input">Tags <span class="optional-label">Optional</span></label>
+                    <input id="note-tags-input" name="tags" type="text" autocomplete="off" placeholder="study, summary, exam" aria-describedby="note-tags-help" data-note-tags />
+                    <p class="form-helper" id="note-tags-help">Separate tags with commas. Duplicates and empty tags are removed.</p>
+                </div>
+                <p class="form-error" data-note-error role="alert" hidden></p>
+            </div>
+            <div class="modal-footer dialog-actions">
+                <button class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+                <button class="button button-primary" type="submit" data-note-submit>Save note</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog class="modal confirm-dialog" id="delete-note-dialog" aria-labelledby="delete-note-title" aria-describedby="delete-note-description" data-dialog>
+        <div class="modal-header">
+            <div>
+                <p class="eyebrow">Delete note</p>
+                <h2 id="delete-note-title">Delete this note?</h2>
+            </div>
+            <button class="icon-button" type="button" aria-label="Close delete confirmation" data-dialog-close>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <p id="delete-note-description">This will permanently remove the note from StudyLens on this device.</p>
+        <div class="modal-footer dialog-actions">
+            <button class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+            <button class="button button-danger" type="button" data-delete-note-confirm>Delete note</button>
         </div>
     </dialog>
     <div class="toast" role="status" aria-live="polite" aria-atomic="true" hidden data-toast></div>

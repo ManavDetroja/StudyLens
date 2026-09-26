@@ -196,3 +196,26 @@ export interface QuizAnalytics {
     recentActivity: QuizAttempt[];
 }
 
+/** Extensible, non-sensitive note metadata (Day 15). */
+export type NoteMetadata = Record<string, unknown>;
+
+/** Persisted Note record in IndexedDB (Day 15). */
+export interface Note {
+    /** Unique record ID (UUID). Immutable after creation. */
+    id: string;
+    /** The parent resource ID, or null if standalone note. */
+    resourceId: string | null;
+    /** Note title. */
+    title: string;
+    /** Note content (plain or structured text). */
+    content: string;
+    /** Normalized tags array. */
+    tags: string[];
+    /** Extensible metadata. */
+    metadata: NoteMetadata;
+    /** ISO 8601 timestamps stored as UTC strings. */
+    createdAt: string;
+    updatedAt: string;
+}
+
+
