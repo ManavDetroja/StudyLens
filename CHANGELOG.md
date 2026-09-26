@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.14.0 — 2026-09-26
+
+- Implemented persistent Quiz Attempt Results & Basic Analytics in StudyLens without backend services, external libraries, cloud storage, or AI APIs.
+- Upgraded StudyLensDB to schema version 5, adding the dedicated `quizAttempts` object store with indexes on `quizId`, `resourceId`, `completedAt`, and `createdAt`.
+- Added `js/storage/quizAttemptValidation.js` and `js/storage/quizAttemptStore.js` with full validation, schema enforcement, and CRUD operations via `QuizAttemptRepository`.
+- Added `js/processing/quizScoreCalculator.js` for pure deterministic evaluation of quiz answers, returning score, percentage, correct/incorrect/unanswered counts, and per-question breakdowns with source chunk grounding.
+- Added `js/features/quizAttemptService.js` for recording completed attempts, querying attempts by quiz, by resource, or globally, and handling cascading cleanup on resource deletion.
+- Added `js/features/analyticsService.js` to derive performance analytics purely from stored attempts (total attempts, unique quizzes taken, average score percentage, highest score percentage, and recent activity).
+- Enhanced the Quiz Player modal (`js/features/quizPlayer.js`, `index.html`, `css/components.css`) to:
+  - Persist an independent attempt record upon submission via `recordQuizAttempt`.
+  - Display score statistics chips (Correct, Incorrect, Unanswered count badges).
+  - Surface detailed per-question review with answer status and source grounding tags.
+  - Provide an Attempt History view listing all past sessions for the active quiz with direct "Review" capabilities.
+  - Reset in memory upon Retry without persisting premature/empty attempts until explicit re-submission.
+- Added direct "History" action button on quiz cards in the Quizzes section (`js/features/quizPage.js`) allowing one-click access to past attempt history.
+- Activated the Quiz Analytics page (`#analytics`, `js/features/analyticsPage.js`, `index.html`) featuring:
+  - Real-time aggregate metric cards: Total attempts, Quizzes taken, Average score, Highest score.
+  - Chronological recent activity feed with performance badges, score percentages, and "Retake" shortcuts.
+  - Dedicated empty state with guidance to complete quizzes from the library.
+  - Full reactive synchronization via `onQuizAttemptsChanged`, `onQuizzesChanged`, and `onResourcesChanged`.
+- Integrated cascading attempt cleanup in `js/features/resourceViewer.js` when deleting a parent resource.
+- Added 24 unit, calculation, service, and UI controller tests in `tests/quizAttempts.test.mjs` (224 tests total across the suite, 223 passing in Node, 1 skipped for browser-only IndexedDB).
+- Updated and verified the native IndexedDB browser test suite (`tests/storage.browser-suite.js`, `tests/storage.browser.html`) with schema v5 assertions.
+- Verified complete end-to-end functionality via automated headless Chrome CDP browser audit.
+
+## 0.13.0 — 2026-09-25
+
+- Implemented the complete Quiz System with deterministic multiple-choice question generation from local learning content (definitions, concepts, questions) without AI/LLM APIs, external NLP, vector DBs, or backend services.
+- Upgraded StudyLensDB to schema version 4, adding the dedicated `quizzes` object store with indexes on `resourceId` and `createdAt`.
+- Added `js/storage/quizValidation.js` and `js/storage/quizStore.js` with full validation, schema enforcement, and CRUD operations via `QuizRepository`.
+- Added `js/processing/quizGenerator.js` for deterministic multiple-choice question generation with authentic distractors drawn directly from same-resource terms and definitions, preserving `sourceChunkIds` for full source grounding.
+- Added `js/features/quizService.js` for quiz orchestration, duplicate-safe generation/regeneration (replaces old quiz without leaking records), cascading deletion on resource removal, and reactive updates.
+- Integrated "Generate quiz" / "Regenerate quiz" action and preview section into the Resource Viewer (`js/features/resourceViewer.js`, `js/features/learningOutputView.js`, `index.html`).
+- Built the interactive Quiz Player modal (`js/features/quizPlayer.js`, `index.html`, `css/components.css`) featuring:
+  - Step-by-step single question view with clear option selection buttons and letter indicators (A, B, C, D).
+  - Navigation controls (Previous and Next) preserving temporary answer selections in memory.
+  - Progress indicator ("Question X of Y") and animated progress bar.
+  - Final submission calculation: score calculation (`X / Y Correct (Z%)`) and question-by-question result breakdown with correct/incorrect indicators.
+  - In-place Retry action: resets answers and restarts at question 1 without altering the stored quiz record in IndexedDB.
+  - Full safe text rendering (`textContent` exclusively, XSS resistant).
+- Activated the Quizzes navigation section (`#quizzes`, `js/features/quizPage.js`) with responsive card deck list, question count badges, first question preview, and "Take quiz" launchers.
+- Added live Dashboard Quizzes stat counter (`js/features/storageStatus.js`, `index.html`) with reactive `quizzeschanged` event listening.
+- Added 23 comprehensive unit, service, generator, and UI controller tests in `tests/quizzes.test.mjs` (200 tests total across the suite, 199 passing in Node, 1 skipped for browser-only IndexedDB).
+- Verified end-to-end functionality via automated headless Chrome browser audit and updated browser storage suite (`tests/storage.browser.html`).
+
 ## 0.12.0 — 2026-09-25
 
 - Implemented deterministic flashcard generation from existing learning outputs (definitions, questions, concepts) into structured `{ front, back }` flashcard records with full `sourceChunkIds` source traceability.

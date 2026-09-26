@@ -1,7 +1,8 @@
 import { initializeDatabase } from '../storage/indexedDB.js';
 import { resourceRepository } from '../storage/resourceStore.js';
 import { getFlashcardCount } from './flashcardService.js';
-import { onLearningOutputsChanged } from '../core/resourceEvents.js';
+import { countQuizzes } from './quizService.js';
+import { onLearningOutputsChanged, onQuizzesChanged } from '../core/resourceEvents.js';
 
 function setResourceCount(count) {
     const counter = document.querySelector('[data-stat="resources"]');
@@ -30,9 +31,25 @@ export async function refreshDashboardFlashcardCount() {
     }
 }
 
+export async function refreshDashboardQuizCount() {
+    const counter = document.querySelector('[data-stat="quizzes"]');
+    if (!counter) return;
+    try {
+        const count = await countQuizzes();
+        counter.textContent = String(count);
+    } catch {
+        counter.textContent = '0';
+    }
+}
+
 // Reactively update dashboard flashcards stat when outputs change
 onLearningOutputsChanged(() => {
     void refreshDashboardFlashcardCount();
+});
+
+// Reactively update dashboard quizzes stat when quizzes change
+onQuizzesChanged(() => {
+    void refreshDashboardQuizCount();
 });
 
 export async function initializeApplicationStorage() {
@@ -40,6 +57,7 @@ export async function initializeApplicationStorage() {
         await initializeDatabase();
         await refreshDashboardResourceCount();
         await refreshDashboardFlashcardCount();
+        await refreshDashboardQuizCount();
         document.documentElement.dataset.storageState = 'ready';
         return true;
     } catch (error) {
@@ -49,3 +67,4 @@ export async function initializeApplicationStorage() {
         return false;
     }
 }
+

@@ -14,12 +14,20 @@ import {
     getFlashcardsForResource,
 } from './flashcardService.js';
 import { openFlashcardViewer } from './flashcardViewer.js';
+import {
+    generateQuizForResource,
+    getQuizForResource,
+    deleteQuizzesForResource,
+} from './quizService.js';
+import { deleteAttemptsForResource } from './quizAttemptService.js';
+import { openQuizPlayer } from './quizPlayer.js';
 import { renderLearningOutputs } from './learningOutputView.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
 let isGenerating = false;
 let isGeneratingFlashcards = false;
+let isGeneratingQuiz = false;
 
 function viewerDialog() {
     return document.getElementById('resource-viewer-dialog');
@@ -60,7 +68,7 @@ function renderTags(tags) {
     });
 }
 
-function renderResource(resource, processed = null, outputsSummary = null) {
+function renderResource(resource, processed = null, outputsSummary = null, quiz = null) {
     document.querySelector('[data-resource-viewer-title]').textContent = resource.title;
     document.querySelector('[data-resource-viewer-type]').textContent = resource.type;
     document.querySelector('[data-resource-viewer-date]').textContent = 'Created ' + formatResourceDate(resource.createdAt);
@@ -132,6 +140,9 @@ function renderResource(resource, processed = null, outputsSummary = null) {
             if (outputsSummary.counts.flashcard > 0) {
                 parts.push(`${outputsSummary.counts.flashcard} flashcard${outputsSummary.counts.flashcard === 1 ? '' : 's'}`);
             }
+            if (quiz && quiz.questions?.length > 0) {
+                parts.push(`Quiz (${quiz.questions.length} question${quiz.questions.length === 1 ? '' : 's'})`);
+            }
             outputsSummaryElement.textContent = parts.join(' • ');
             outputsSummaryElement.hidden = false;
         } else {
@@ -167,20 +178,41 @@ function renderResource(resource, processed = null, outputsSummary = null) {
         }
     }
 
+    const generateQuizBtn = document.querySelector('[data-resource-viewer-generate-quiz]');
+    const hasQuiz = Boolean(quiz && quiz.questions?.length > 0);
+
+    if (generateQuizBtn) {
+        if (!hasContent) {
+            generateQuizBtn.disabled = true;
+            generateQuizBtn.title = 'Add text content to generate quiz';
+            generateQuizBtn.textContent = 'Generate quiz';
+        } else {
+            generateQuizBtn.disabled = false;
+            generateQuizBtn.removeAttribute('title');
+            generateQuizBtn.textContent = hasQuiz ? 'Regenerate quiz' : 'Generate quiz';
+        }
+    }
+
     if (outputsContainer) {
         if (!hasContent) {
             renderLearningOutputs(outputsContainer, {
                 status: 'empty',
                 emptyMessage: 'This resource has no text content. Add content to generate learning outputs.',
             });
-        } else if (hasOutputs) {
+        } else if (hasOutputs || hasQuiz) {
             renderLearningOutputs(outputsContainer, {
                 status: 'ready',
-                outputs: outputsSummary.outputs,
+                outputs: outputsSummary?.outputs ?? [],
+                quiz,
                 onStudyFlashcards: () => {
-                    const cards = outputsSummary.outputs.filter((o) => o.type === 'flashcard');
+                    const cards = outputsSummary?.outputs?.filter((o) => o.type === 'flashcard') ?? [];
                     if (cards.length > 0) {
                         openFlashcardViewer(cards, resource.title);
+                    }
+                },
+                onStartQuiz: () => {
+                    if (quiz) {
+                        openQuizPlayer(quiz);
                     }
                 },
             });
@@ -218,8 +250,15 @@ export async function openResourceViewer(resourceId) {
             // Learning outputs are an enhancement; proceed if unavailable
         }
 
+        let quiz = null;
+        try {
+            quiz = await getQuizForResource(resourceId);
+        } catch {
+            // Quiz is an enhancement; proceed if unavailable
+        }
+
         activeResource = resource;
-        renderResource(resource, processed, outputsSummary);
+        renderResource(resource, processed, outputsSummary, quiz);
         openDialog(viewerDialog());
     } catch (error) {
         console.error('StudyLens could not open the resource.', error);
@@ -307,6 +346,41 @@ export function initResourceViewer() {
         }
     });
 
+    document.querySelector('[data-resource-viewer-generate-quiz]')?.addEventListener('click', async (event) => {
+        if (isGeneratingQuiz || !activeResource) return;
+
+        const hasContent = typeof activeResource.content === 'string' && activeResource.content.trim().length > 0;
+        if (!hasContent) {
+            showToast('Cannot generate quiz for empty content.', { variant: 'error' });
+            return;
+        }
+
+        const btn = event.currentTarget;
+        const wasRegenerate = btn.textContent.toLowerCase().includes('regenerate');
+
+        isGeneratingQuiz = true;
+        btn.disabled = true;
+        btn.textContent = 'Generating…';
+
+        try {
+            await generateQuizForResource(activeResource.id);
+            const [processed, summary, quiz] = await Promise.all([
+                getProcessedContent(activeResource.id).catch(() => null),
+                getLearningOutputsSummaryForResource(activeResource.id).catch(() => null),
+                getQuizForResource(activeResource.id).catch(() => null),
+            ]);
+            renderResource(activeResource, processed, summary, quiz);
+            showToast(wasRegenerate ? 'Quiz regenerated.' : 'Quiz generated.');
+        } catch (err) {
+            console.error('StudyLens could not generate quiz.', err);
+            showToast('Could not generate quiz: ' + (err.message || 'Please try again.'), { variant: 'error' });
+            btn.disabled = false;
+            btn.textContent = wasRegenerate ? 'Regenerate quiz' : 'Generate quiz';
+        } finally {
+            isGeneratingQuiz = false;
+        }
+    });
+
     document.querySelector('[data-resource-viewer-edit]')?.addEventListener('click', () => {
         if (!activeResource || activeResource.type !== 'text') return;
         closeDialog(viewerDialog());
@@ -346,6 +420,18 @@ export function initResourceViewer() {
                 await learningOutputRepository.deleteLearningOutputsByResourceId(pendingDeleteId);
             } catch (outputCleanupError) {
                 console.warn('StudyLens could not clean up learning outputs for deleted resource.', outputCleanupError);
+            }
+
+            try {
+                await deleteQuizzesForResource(pendingDeleteId);
+            } catch (quizCleanupError) {
+                console.warn('StudyLens could not clean up quizzes for deleted resource.', quizCleanupError);
+            }
+
+            try {
+                await deleteAttemptsForResource(pendingDeleteId);
+            } catch (attemptCleanupError) {
+                console.warn('StudyLens could not clean up quiz attempts for deleted resource.', attemptCleanupError);
             }
 
             notifyResourcesChanged({ action: 'deleted', resourceId: pendingDeleteId });

@@ -321,6 +321,73 @@ export function renderFlashcardsSection(flashcardOutputs, onStudyClick) {
 }
 
 /**
+ * Render the Quiz preview section in the resource viewer.
+ *
+ * @param {object} quiz
+ * @param {Function} [onStartQuiz]
+ * @returns {HTMLElement}
+ */
+export function renderQuizSection(quiz, onStartQuiz) {
+    const card = document.createElement('article');
+    card.className = 'learning-output-card output-quiz-card';
+    card.dataset.outputType = 'quiz';
+
+    const header = document.createElement('div');
+    header.className = 'output-section-header';
+
+    const qCount = quiz.questions?.length ?? 0;
+    const heading = document.createElement('h4');
+    heading.textContent = `Quiz (${qCount} Question${qCount === 1 ? '' : 's'})`;
+    header.append(heading);
+
+    if (onStartQuiz) {
+        const startBtn = document.createElement('button');
+        startBtn.className = 'button button-secondary';
+        startBtn.style.minHeight = '1.9rem';
+        startBtn.style.padding = '0.2rem 0.65rem';
+        startBtn.style.fontSize = '0.78rem';
+        startBtn.type = 'button';
+        startBtn.textContent = 'Take quiz';
+        startBtn.dataset.startQuizBtn = '';
+        startBtn.addEventListener('click', onStartQuiz);
+        header.append(startBtn);
+    }
+
+    card.append(header);
+
+    if (quiz.questions && quiz.questions.length > 0) {
+        const previewList = document.createElement('div');
+        previewList.className = 'quiz-preview-list';
+
+        quiz.questions.slice(0, 3).forEach((q, idx) => {
+            const item = document.createElement('div');
+            item.className = 'quiz-preview-item';
+
+            const qText = document.createElement('span');
+            qText.className = 'quiz-preview-q';
+            qText.textContent = `Q${idx + 1}: ${q.question}`;
+            item.append(qText);
+
+            const badge = createSourceBadge(q.sourceChunkIds);
+            if (badge) item.append(badge);
+
+            previewList.append(item);
+        });
+
+        if (quiz.questions.length > 3) {
+            const more = document.createElement('p');
+            more.className = 'form-helper';
+            more.textContent = `+ ${quiz.questions.length - 3} more question${quiz.questions.length - 3 === 1 ? '' : 's'}`;
+            previewList.append(more);
+        }
+
+        card.append(previewList);
+    }
+
+    return card;
+}
+
+/**
  * Render an empty state view.
  *
  * @param {string} [message]
@@ -441,6 +508,10 @@ export function renderLearningOutputs(container, state = {}) {
 
     if (flashcards.length > 0) {
         wrapper.append(renderFlashcardsSection(flashcards, state.onStudyFlashcards));
+    }
+
+    if (state.quiz) {
+        wrapper.append(renderQuizSection(state.quiz, state.onStartQuiz));
     }
 
     container.append(wrapper);

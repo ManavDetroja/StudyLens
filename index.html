@@ -79,13 +79,63 @@
                     <div class="flashcard-deck-list" data-flashcards-decks hidden></div>
                 </section>
                 <section class="page-view" id="quizzes" data-page="quizzes" aria-labelledby="quizzes-heading" hidden>
-                    <div class="page-intro page-intro-with-action"><div><p class="eyebrow">Knowledge checks</p><h1 id="quizzes-heading">Quizzes</h1><p class="lead">Use questions and feedback to check what has stuck.</p></div><button class="button button-primary" type="button" data-feature-action="quizzes">Create quiz</button></div>
-                    <div class="empty-state page-empty"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M9.75 9a2.5 2.5 0 1 1 4.1 1.9c-.92.73-1.85 1.2-1.85 2.6M12 17h.01"/></svg></span><h2>No quizzes yet</h2><p>Quiz generation will become available when learning resources can be processed.</p><button class="button button-secondary" type="button" data-feature-action="quizzes">Create quiz</button></div>
+                    <div class="page-intro page-intro-with-action">
+                        <div>
+                            <p class="eyebrow">Knowledge checks</p>
+                            <h1 id="quizzes-heading">Quizzes</h1>
+                            <p class="lead">Use multiple-choice questions to test and reinforce what you have learned.</p>
+                        </div>
+                        <button class="button button-primary" type="button" data-quizzes-go-library>View library to generate</button>
+                    </div>
+                    <div class="empty-state page-empty" data-quizzes-empty>
+                        <span class="empty-icon">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M9.75 9a2.5 2.5 0 1 1 4.1 1.9c-.92.73-1.85 1.2-1.85 2.6M12 17h.01"/></svg>
+                        </span>
+                        <h2>No quizzes yet</h2>
+                        <p>Generate study aids and quizzes from any text resource in your library to start practicing.</p>
+                        <button class="button button-secondary" type="button" data-quizzes-go-library>Go to library</button>
+                    </div>
+                    <div class="quiz-grid" data-quizzes-list hidden></div>
                 </section>
                 <section class="page-view" id="analytics" data-page="analytics" aria-labelledby="analytics-heading" hidden>
-                    <div class="page-intro"><div><p class="eyebrow">Learning insights</p><h1 id="analytics-heading">Analytics</h1><p class="lead">Understand your study patterns after you begin building your library.</p></div></div>
-                    <section class="analytics-placeholder" aria-labelledby="analytics-summary-heading"><article class="card"><p class="card-kicker">Study activity</p><h2 id="analytics-summary-heading">Progress will appear here</h2><p>StudyLens will calculate analytics from locally stored resources and reviews. No progress data exists yet.</p><div class="progress-track" aria-label="No progress data available"><span></span></div></article><article class="card"><p class="card-kicker">Learning focus</p><h2>Ready when you are</h2><p>Add material and generate learning resources to start building a meaningful view of your study activity.</p></article></section>
-                    <div class="empty-state compact"><span class="empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></span><h2>No analytics yet</h2><p>There is no activity to analyse until future learning tools are used.</p></div>
+                    <div class="page-intro"><div><p class="eyebrow">Learning insights</p><h1 id="analytics-heading">Quiz Analytics</h1><p class="lead">Track your quiz practice sessions, accuracy, and study progress over time.</p></div></div>
+                    <div class="empty-state page-empty" data-analytics-empty>
+                        <span class="empty-icon">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+                        </span>
+                        <h2>No quiz attempts yet</h2>
+                        <p>Complete a quiz from any study resource in your library to start tracking your performance here.</p>
+                        <button class="button button-secondary" type="button" data-analytics-go-quizzes>View quizzes</button>
+                    </div>
+                    <div class="analytics-content" data-analytics-content hidden>
+                        <div class="stats-grid analytics-stats-grid">
+                            <article class="stat-card">
+                                <span class="stat-label">Total attempts</span>
+                                <strong data-analytics-total-attempts>0</strong>
+                            </article>
+                            <article class="stat-card">
+                                <span class="stat-label">Quizzes taken</span>
+                                <strong data-analytics-quizzes-taken>0</strong>
+                            </article>
+                            <article class="stat-card">
+                                <span class="stat-label">Average score</span>
+                                <strong data-analytics-average-score>0%</strong>
+                            </article>
+                            <article class="stat-card">
+                                <span class="stat-label">Highest score</span>
+                                <strong data-analytics-highest-score>0%</strong>
+                            </article>
+                        </div>
+                        <article class="card analytics-activity-card">
+                            <div class="card-header">
+                                <div>
+                                    <h2>Recent quiz activity</h2>
+                                    <p>Your latest quiz practice sessions and scores.</p>
+                                </div>
+                            </div>
+                            <div class="analytics-activity-list" data-analytics-activity-list></div>
+                        </article>
+                    </div>
                 </section>
                 <section class="page-view" id="settings" data-page="settings" aria-labelledby="settings-heading" hidden>
                     <div class="page-intro"><div><p class="eyebrow">Application preferences</p><h1 id="settings-heading">Settings</h1><p class="lead">Review the areas that will make StudyLens yours as its capabilities grow.</p></div></div>
@@ -132,7 +182,7 @@
                 <div class="resource-outputs-container" data-resource-viewer-outputs-container></div>
             </section>
         </div>
-        <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
+        <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
     </dialog>
     <dialog class="modal confirm-dialog" id="delete-resource-dialog" aria-labelledby="delete-resource-title" aria-describedby="delete-resource-description" data-dialog>
         <div class="modal-header"><div><p class="eyebrow">Delete resource</p><h2 id="delete-resource-title">Delete this resource?</h2></div><button class="icon-button" type="button" aria-label="Close delete confirmation" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
@@ -181,6 +231,65 @@
             <button class="button button-secondary" type="button" data-flashcard-prev aria-label="Previous card">Previous</button>
             <button class="button button-primary" type="button" data-flashcard-flip>Flip card</button>
             <button class="button button-secondary" type="button" data-flashcard-next aria-label="Next card">Next</button>
+        </div>
+    </dialog>
+    <dialog class="modal quiz-player-dialog" id="quiz-player-dialog" aria-labelledby="quiz-player-title" data-dialog>
+        <div class="modal-header">
+            <div>
+                <p class="eyebrow">Quiz challenge</p>
+                <h2 id="quiz-player-title" data-quiz-player-title>Quiz</h2>
+            </div>
+            <button class="icon-button" type="button" aria-label="Close quiz player" data-dialog-close>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <div class="quiz-player-body">
+            <!-- Active Question View -->
+            <div class="quiz-question-view" data-quiz-question-view>
+                <div class="quiz-progress-bar-container" aria-hidden="true">
+                    <div class="quiz-progress-bar" data-quiz-progress-bar style="width: 0%;"></div>
+                </div>
+                <div class="quiz-meta-bar">
+                    <span class="quiz-counter" data-quiz-progress-counter aria-live="polite">Question 1 of 1</span>
+                    <span class="badge quiz-source-badge" data-quiz-source-badge hidden></span>
+                </div>
+                <div class="quiz-question-card">
+                    <h3 class="quiz-question-text" data-quiz-question-text></h3>
+                    <div class="quiz-options-list" data-quiz-options-list role="group" aria-label="Answer options"></div>
+                </div>
+                <div class="modal-footer dialog-actions quiz-player-actions">
+                    <button class="button button-secondary" type="button" data-quiz-prev aria-label="Previous question">Previous</button>
+                    <button class="button button-secondary" type="button" data-quiz-next aria-label="Next question">Next</button>
+                    <button class="button button-primary" type="button" data-quiz-submit hidden>Submit quiz</button>
+                </div>
+            </div>
+            <!-- Results View -->
+            <div class="quiz-results-view" data-quiz-results-view hidden>
+                <div class="quiz-score-banner">
+                    <p class="eyebrow">Quiz Complete</p>
+                    <h3 class="quiz-score-title" data-quiz-score-banner></h3>
+                    <div class="quiz-score-stats" data-quiz-score-stats></div>
+                </div>
+                <div class="quiz-results-breakdown" data-quiz-results-breakdown></div>
+                <div class="modal-footer dialog-actions quiz-results-actions">
+                    <button class="button button-secondary" type="button" data-dialog-close>Close</button>
+                    <button class="button button-secondary" type="button" data-quiz-view-history>View attempt history</button>
+                    <button class="button button-primary" type="button" data-quiz-retry>Retry quiz</button>
+                </div>
+            </div>
+            <!-- Attempt History View -->
+            <div class="quiz-history-view" data-quiz-history-view hidden>
+                <div class="quiz-history-header">
+                    <p class="eyebrow">Past sessions</p>
+                    <h3 class="quiz-history-title">Attempt History</h3>
+                </div>
+                <div class="quiz-history-list" data-quiz-history-list></div>
+                <div class="modal-footer dialog-actions quiz-history-actions">
+                    <button class="button button-secondary" type="button" data-dialog-close>Close</button>
+                    <button class="button button-secondary" type="button" data-quiz-history-back>Back to results</button>
+                    <button class="button button-primary" type="button" data-quiz-retry>Take quiz again</button>
+                </div>
+            </div>
         </div>
     </dialog>
     <div class="toast" role="status" aria-live="polite" aria-atomic="true" hidden data-toast></div>

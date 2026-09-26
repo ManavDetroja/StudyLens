@@ -1,10 +1,12 @@
 import { StorageError } from './errors.js';
 
 export const DATABASE_NAME = 'StudyLensDB';
-export const DATABASE_VERSION = 3;
+export const DATABASE_VERSION = 5;
 export const RESOURCE_STORE = 'resources';
 export const PROCESSED_CONTENT_STORE = 'processedContent';
 export const LEARNING_OUTPUT_STORE = 'learningOutputs';
+export const QUIZ_STORE = 'quizzes';
+export const QUIZ_ATTEMPT_STORE = 'quizAttempts';
 
 export const RESOURCE_INDEXES = Object.freeze([
     { name: 'type', keyPath: 'type' },
@@ -16,6 +18,18 @@ export const RESOURCE_INDEXES = Object.freeze([
 export const LEARNING_OUTPUT_INDEXES = Object.freeze([
     { name: 'resourceId', keyPath: 'resourceId', unique: false },
     { name: 'type', keyPath: 'type', unique: false },
+    { name: 'createdAt', keyPath: 'createdAt', unique: false },
+]);
+
+export const QUIZ_INDEXES = Object.freeze([
+    { name: 'resourceId', keyPath: 'resourceId', unique: false },
+    { name: 'createdAt', keyPath: 'createdAt', unique: false },
+]);
+
+export const QUIZ_ATTEMPT_INDEXES = Object.freeze([
+    { name: 'quizId', keyPath: 'quizId', unique: false },
+    { name: 'resourceId', keyPath: 'resourceId', unique: false },
+    { name: 'completedAt', keyPath: 'completedAt', unique: false },
     { name: 'createdAt', keyPath: 'createdAt', unique: false },
 ]);
 
@@ -62,4 +76,23 @@ export function upgradeDatabaseSchema(database, transaction, oldVersion) {
             });
         }
     }
+
+    if (oldVersion < 4) {
+        if (!database.objectStoreNames.contains(QUIZ_STORE)) {
+            const quizStore = database.createObjectStore(QUIZ_STORE, { keyPath: 'id' });
+            QUIZ_INDEXES.forEach(({ name, keyPath, unique }) => {
+                quizStore.createIndex(name, keyPath, { unique });
+            });
+        }
+    }
+
+    if (oldVersion < 5) {
+        if (!database.objectStoreNames.contains(QUIZ_ATTEMPT_STORE)) {
+            const attemptStore = database.createObjectStore(QUIZ_ATTEMPT_STORE, { keyPath: 'id' });
+            QUIZ_ATTEMPT_INDEXES.forEach(({ name, keyPath, unique }) => {
+                attemptStore.createIndex(name, keyPath, { unique });
+            });
+        }
+    }
 }
+

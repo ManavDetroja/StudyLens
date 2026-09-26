@@ -3,6 +3,8 @@ import { createTextResourceInput, createTextResourceUpdate } from '../js/feature
 import { ResourceRepository } from '../js/storage/resourceStore.js';
 import { ProcessedContentRepository } from '../js/storage/processedContentStore.js';
 import { LearningOutputRepository } from '../js/storage/learningOutputStore.js';
+import { QuizRepository } from '../js/storage/quizStore.js';
+import { QuizAttemptRepository } from '../js/storage/quizAttemptStore.js';
 import { processAndStore, getProcessedContent, deleteProcessedContent } from '../js/features/processingIntegration.js';
 
 function assert(condition, message) {
@@ -52,6 +54,12 @@ export async function runStorageBrowserSuite() {
     const outputRepository = new LearningOutputRepository({
         database: connection,
     });
+    const quizRepository = new QuizRepository({
+        database: connection,
+    });
+    const attemptRepository = new QuizAttemptRepository({
+        database: connection,
+    });
     const results = [];
 
     try {
@@ -72,7 +80,17 @@ export async function runStorageBrowserSuite() {
         ['resourceId', 'type', 'createdAt'].forEach((index) => {
             assert(outputStore.indexNames.contains(index), 'Missing learningOutputs index: ' + index + '.');
         });
-        results.push('Database schema and indexes created (v3 with learningOutputs)');
+        assert(database.objectStoreNames.contains('quizzes'), 'The quizzes store was not created.');
+        const quizStore = database.transaction('quizzes', 'readonly').objectStore('quizzes');
+        ['resourceId', 'createdAt'].forEach((index) => {
+            assert(quizStore.indexNames.contains(index), 'Missing quizzes index: ' + index + '.');
+        });
+        assert(database.objectStoreNames.contains('quizAttempts'), 'The quizAttempts store was not created.');
+        const attemptStore = database.transaction('quizAttempts', 'readonly').objectStore('quizAttempts');
+        ['quizId', 'resourceId', 'completedAt', 'createdAt'].forEach((index) => {
+            assert(attemptStore.indexNames.contains(index), 'Missing quizAttempts index: ' + index + '.');
+        });
+        results.push('Database schema and indexes created (v5 with quizAttempts)');
 
         const created = await repository.createResource(createTextResourceInput({
             title: ' Storage test resource ',
@@ -170,6 +188,74 @@ export async function runStorageBrowserSuite() {
         assert(deletedOutputsCount === 2, 'Expected 2 deleted learning outputs.');
         assert((await outputRepository.getLearningOutputsByResourceId(created.id)).length === 0, 'Outputs remained after deletion.');
         results.push('Learning output cascade deletion');
+
+        // Quiz creation and queries
+        const createdQuiz = await quizRepository.createQuiz({
+            resourceId: created.id,
+            title: 'Test Quiz',
+            questions: [
+                {
+                    id: 'q-test-1',
+                    question: 'What is tested?',
+                    options: ['Storage', 'Network'],
+                    correctAnswer: 'Storage',
+                    sourceChunkIds: [0],
+                    order: 0,
+                },
+            ],
+            metadata: { questionCount: 1 },
+        });
+        assert(createdQuiz.resourceId === created.id, 'Quiz resourceId mismatch.');
+        assert((await quizRepository.getQuiz(createdQuiz.id)) !== null, 'Quiz could not be retrieved by ID.');
+        assert((await quizRepository.getQuizzesByResourceId(created.id)).length === 1, 'Resource quizzes count mismatch.');
+        assert((await quizRepository.getAllQuizzes()).length === 1, 'All quizzes count mismatch.');
+        assert((await quizRepository.countQuizzes()) === 1, 'Count quizzes mismatch.');
+        results.push('Quiz creation and indexed queries');
+
+        // Delete quiz for resource
+        const deletedQuizzesCount = await quizRepository.deleteQuizzesByResourceId(created.id);
+        assert(deletedQuizzesCount === 1, 'Expected 1 deleted quiz.');
+        assert((await quizRepository.getQuizzesByResourceId(created.id)).length === 0, 'Quiz remained after deletion.');
+        results.push('Quiz cascade deletion');
+
+        // Quiz attempt creation and queries
+        const createdAttempt = await attemptRepository.createQuizAttempt({
+            quizId: createdQuiz.id,
+            resourceId: created.id,
+            quizTitle: 'Test Quiz',
+            score: 1,
+            correctCount: 1,
+            incorrectCount: 0,
+            unansweredCount: 0,
+            totalQuestions: 1,
+            percentage: 100,
+            answers: { 'q-test-1': 'Storage' },
+            questionResults: [{
+                questionId: 'q-test-1',
+                question: 'What is tested?',
+                selectedAnswer: 'Storage',
+                correctAnswer: 'Storage',
+                isCorrect: true,
+                isUnanswered: false,
+                sourceChunkIds: [0],
+            }],
+            startedAt: '2026-09-18T00:04:00.000Z',
+            completedAt: '2026-09-18T00:04:30.000Z',
+        });
+        assert(createdAttempt.resourceId === created.id, 'Attempt resourceId mismatch.');
+        assert(createdAttempt.quizId === createdQuiz.id, 'Attempt quizId mismatch.');
+        assert((await attemptRepository.getQuizAttempt(createdAttempt.id)) !== null, 'Attempt could not be retrieved by ID.');
+        assert((await attemptRepository.getAttemptsByQuiz(createdQuiz.id)).length === 1, 'Quiz attempts count mismatch.');
+        assert((await attemptRepository.getAttemptsByResource(created.id)).length === 1, 'Resource attempts count mismatch.');
+        assert((await attemptRepository.getAllAttempts()).length === 1, 'All attempts count mismatch.');
+        assert((await attemptRepository.countAttempts()) === 1, 'Count attempts mismatch.');
+        results.push('Quiz attempt creation and indexed queries');
+
+        // Delete attempts for resource
+        const deletedAttemptsCount = await attemptRepository.deleteAttemptsByResource(created.id);
+        assert(deletedAttemptsCount === 1, 'Expected 1 deleted attempt.');
+        assert((await attemptRepository.getAttemptsByResource(created.id)).length === 0, 'Attempts remained after deletion.');
+        results.push('Quiz attempt cascade deletion');
 
         assert(await repository.deleteResource(created.id), 'Delete did not report success.');
         assert(await repository.getResource(created.id) === null, 'Deleted resource was still available.');

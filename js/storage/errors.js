@@ -21,6 +21,20 @@ export class LearningOutputValidationError extends StorageError {
     }
 }
 
+export class QuizValidationError extends StorageError {
+    constructor(message, { code = 'INVALID_QUIZ', cause } = {}) {
+        super(message, { code, cause });
+        this.name = 'QuizValidationError';
+    }
+}
+
+export class QuizAttemptValidationError extends StorageError {
+    constructor(message, { code = 'INVALID_QUIZ_ATTEMPT', cause } = {}) {
+        super(message, { code, cause });
+        this.name = 'QuizAttemptValidationError';
+    }
+}
+
 export function asStorageError(error, message, code = 'STORAGE_ERROR') {
     if (error instanceof StorageError) return error;
     return new StorageError(message, { code, cause: error });

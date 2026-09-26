@@ -125,3 +125,74 @@ export interface FlashcardDeck {
     flashcards: LearningOutput[];
     count: number;
 }
+
+/** A single multiple-choice question in a Quiz (Day 13). */
+export interface QuizQuestion {
+    id: string;
+    question: string;
+    options: string[];
+    correctAnswer: string;
+    sourceChunkIds: (string | number)[];
+    order: number;
+}
+
+/** Extensible, non-sensitive quiz metadata. */
+export type QuizMetadata = Record<string, unknown>;
+
+/** Persisted Quiz record in IndexedDB (Day 13). */
+export interface Quiz {
+    /** Unique record ID (UUID). Immutable after creation. */
+    id: string;
+    /** The parent resource ID. Immutable after creation. */
+    resourceId: string;
+    /** Quiz title, typically derived from the parent resource. */
+    title: string;
+    /** Ordered list of multiple-choice questions. */
+    questions: QuizQuestion[];
+    /** Extensible metadata (e.g. generator, difficulty). */
+    metadata: QuizMetadata;
+    /** ISO 8601 timestamps stored as UTC strings. */
+    createdAt: string;
+    updatedAt: string;
+}
+
+/** Per-question result in a completed quiz attempt (Day 14). */
+export interface QuestionResult {
+    questionId: string;
+    question: string;
+    selectedAnswer: string | null;
+    correctAnswer: string;
+    isCorrect: boolean;
+    isUnanswered: boolean;
+    sourceChunkIds: (string | number)[];
+}
+
+/** Persisted Quiz Attempt record in IndexedDB (Day 14). */
+export interface QuizAttempt {
+    id: string;
+    quizId: string;
+    resourceId: string;
+    quizTitle: string;
+    score: number;
+    correctCount: number;
+    incorrectCount: number;
+    unansweredCount: number;
+    totalQuestions: number;
+    percentage: number;
+    answers: Record<string, string>;
+    questionResults: QuestionResult[];
+    startedAt: string;
+    completedAt: string;
+    createdAt: string;
+    metadata?: Record<string, unknown>;
+}
+
+/** Summary quiz performance metrics (Day 14). */
+export interface QuizAnalytics {
+    totalAttempts: number;
+    totalQuizzesTaken: number;
+    averageScore: number;
+    highestScore: number;
+    recentActivity: QuizAttempt[];
+}
+

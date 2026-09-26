@@ -57,13 +57,15 @@ The UI never opens IndexedDB directly. js/features/storageStatus.js coordinates 
 #### Database schema
 
 - Database: StudyLensDB
-- Schema version: 3
+- Schema version: 5
 - Object stores:
   - `resources`, keyed by the immutable Resource id (non-unique indexes: type, createdAt, updatedAt, and status)
   - `processedContent`, keyed by UUID id (unique index: resourceId)
   - `learningOutputs`, keyed by UUID id (indexes: resourceId, type, createdAt, and sourceChunkIds with multiEntry: true)
+  - `quizzes`, keyed by UUID id (indexes: resourceId, createdAt)
+  - `quizAttempts`, keyed by UUID id (indexes: quizId, resourceId, completedAt, createdAt)
 
-The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, and querying learning outputs by resource, type, creation date, or source chunk.
+The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, querying learning outputs by resource, type, creation date, or source chunk, fast retrieval/cleanup of quizzes by parent resourceId, and efficient chronological filtering and lookup of quiz attempt histories by quiz or parent resource.
 
 ### Storage modules
 
@@ -257,3 +259,97 @@ Day 12 introduces the first complete active recall study feature for StudyLens:
 - **Flashcard Study Viewer**: Native dialog with 3D CSS card flip, Next/Previous card navigation, "Card X of Y" progress counter, animated completion bar, source chunk traceability badge, and full keyboard interaction (<kbd>Space</kbd>/<kbd>Enter</kbd> to flip, <kbd>←</kbd> and <kbd>→</kbd> to navigate, <kbd>Escape</kbd> to close).
 - **Dashboard**: Live flashcard stat counter wired to storage and reactively updated via `learningoutputschanged` events.
 - **Safe rendering**: All dynamic text content is inserted via `textContent`; zero `innerHTML` or `eval`.
+
+## Interactive Quiz System (Day 13)
+
+Day 13 introduces the complete local Quiz System with deterministic multiple-choice question generation, persistence, collection deck management, and interactive modal quiz play:
+
+    Processed Content
+      ↓
+    Learning Outputs (Definitions, Concepts, Questions)
+      ↓
+    Quiz Generator (js/processing/quizGenerator.js)
+      ↓
+    Quiz Service (js/features/quizService.js)
+      ↓
+    StudyLensDB v4 (quizzes store via QuizRepository)
+      ↓
+    Quizzes Page (js/features/quizPage.js) & Quiz Player (js/features/quizPlayer.js)
+
+### Deterministic MCQ Generation & Authentic Distractors
+- Pure client-side generation without external AI/LLM APIs, external NLP, vector DBs, or hallucinated content:
+  - **Strategy 1 (Definition → Meaning)**: `"What is the definition of {term}?"` with correct answer as definition and distractors drawn from authentic definitions of other terms in the same resource.
+  - **Strategy 2 (Meaning → Term)**: `"Which term refers to: '{definition}'?"` with correct answer as term and distractors drawn from authentic terms and key concepts in the same resource.
+  - **Strategy 3 (Grounded Questions Pool)**: Matches generated questions with known definitions to produce targeted review MCQs.
+- **Authentic Distractors**: Distractors are exclusively selected from verified sibling terms/definitions within the same source resource, preventing fabrication or nonsense distractors.
+- **Deterministic Shuffle**: Distractor order is pseudorandomly shuffled using a deterministic hash seed based on question text and index, guaranteeing identical results for identical content.
+- **Source Traceability**: Every question retains its `sourceChunkIds` array, allowing users to trace quiz questions directly back to original resource chunks.
+
+### Storage & Data Model (StudyLensDB v4)
+- Upgraded StudyLensDB from schema version 3 to 4, adding the dedicated `quizzes` object store with non-unique indexes on `resourceId` and `createdAt`.
+- Validated `Quiz` and `QuizQuestion` schemas in `js/storage/quizValidation.js` with immutable `id`, `resourceId`, and `createdAt` guarantees.
+- `QuizRepository` (`js/storage/quizStore.js`) implements full CRUD operations, index lookups by resource, and clear/count methods adhering to the repository pattern.
+
+### Service Orchestration & Duplicate Safety
+- `js/features/quizService.js` coordinates generation, persistence, and queries:
+  - Automatically ensures learning outputs exist for the resource before generating a quiz.
+  - **Regeneration duplicate safety**: Deletes any existing quiz for the resource prior to inserting the newly generated quiz, preventing record accumulation.
+  - **Cascading deletion**: When a resource is deleted in `resourceViewer.js`, its associated quiz is automatically purged from `quizzes`.
+  - Dispatches `quizzeschanged` events on `resourceEvents.js` to notify interested views reactively.
+
+### User Experience & Interactive Quiz Player
+- **Resource Viewer**: Features a "Generate quiz" / "Regenerate quiz" action button with concurrency guard, quiz preview card showing question count and previews, and a direct "Take quiz" launcher.
+- **Quizzes Page (`#quizzes`)**: Replaces the static placeholder with an active quiz deck collection view showing responsive cards with title, question count badge, first question preview, and "Take quiz" button.
+- **Interactive Quiz Player (`#quiz-player-dialog`)**:
+  - Displays one question at a time with clear, accessible option buttons and letter badges (A, B, C, D).
+  - Navigation controls (Previous and Next) preserving temporary answer selections in memory without saving partial attempts.
+  - Live progress counter ("Question X of Y") and progress bar.
+  - On the final question, displays "Submit quiz".
+  - **Scoring & Breakdown**: Calculates score (`X / Y Correct (Z%)`) and renders a full question-by-question breakdown with Correct (green) and Incorrect (rose) badges, showing selected vs correct answers.
+  - **Retry Quiz**: Clears memory answers and resets to question 1 without mutating the stored quiz definition.
+- **Dashboard**: Live Quizzes stat card wired to `countQuizzes()` and reactively refreshed via `quizzeschanged`.
+- **Safe Rendering**: All dynamic user and generated text is strictly inserted via `textContent`, completely preventing XSS injection.
+
+## Quiz Attempt Results & Basic Analytics (Day 14)
+
+Day 14 establishes persistent quiz attempt history and client-side performance analytics without external services, backend servers, or cloud databases:
+
+    Quiz Player Submission
+      ↓
+    Deterministic Result Calculation (js/processing/quizScoreCalculator.js)
+      ↓
+    Quiz Attempt Service (js/features/quizAttemptService.js)
+      ↓
+    StudyLensDB v5 (quizAttempts store via QuizAttemptRepository)
+      ↓
+    Analytics Service (js/features/analyticsService.js)
+      ↓
+    Quiz Player Results / History Modal & Quiz Analytics Page (#analytics)
+
+### Deterministic Score Calculation
+- `calculateQuizResult(quiz, userAnswers)` in `js/processing/quizScoreCalculator.js`:
+  - Evaluates user answers against quiz definition questions purely in memory.
+  - Accounts for correct, incorrect, and unanswered questions cleanly.
+  - Computes score (number of correct questions), percentage (0-100 rounded), and total count.
+  - Generates full `QuestionResult` items with `selectedAnswer`, `correctAnswer`, `isCorrect`, `isUnanswered`, and preserved `sourceChunkIds`.
+
+### Storage & Data Model (StudyLensDB v5)
+- Upgraded StudyLensDB from version 4 to 5, adding the dedicated `quizAttempts` object store with indexes on `quizId`, `resourceId`, `completedAt`, and `createdAt`.
+- Validated `QuizAttempt` and `QuestionResult` schemas in `js/storage/quizAttemptValidation.js`.
+- `QuizAttemptRepository` (`js/storage/quizAttemptStore.js`) provides persistent CRUD, indexed lookups by quiz and resource (sorted newest first), and deletion/clear methods.
+- **Independence of Quiz Definition vs Attempts**: Quizzes in the `quizzes` store remain immutable study templates. User attempts in `quizAttempts` are independent historical records. When a quiz is regenerated, existing attempts remain preserved.
+- **Cascading Deletion**: When a resource is deleted, `deleteAttemptsForResource` automatically cleans up all associated attempts.
+
+### Analytics Service
+- `computeQuizAnalytics(attempts, options)` in `js/features/analyticsService.js`:
+  - Derives aggregate metrics purely from stored attempts: `totalAttempts`, `uniqueQuizzesCount` / `totalQuizzesTaken`, `averageScorePercentage` / `averageScore`, `highestScorePercentage` / `highestScore`, and `recentActivity` / `recentAttempts`.
+  - Zero attempts produces an honest empty state with 0s across all metrics.
+
+### User Experience
+- **Results Screen**: In `js/features/quizPlayer.js`, displays score banner, stat chips (Correct, Incorrect, Unanswered count badges), per-question review with answer details and source grounding badges, and a "View attempt history" button.
+- **Attempt History Modal**: Lists past attempts with date, score %, performance summary, and a "Review" button allowing users to inspect past submission breakdowns.
+- **Safe Retry**: Resets player answers and session in memory; does NOT record empty or partial attempts until the user explicitly re-submits.
+- **Quizzes Page**: Added a direct "History" button on quiz cards to launch the player directly into history mode.
+- **Quiz Analytics Page (`#analytics`)**: Real-time stats grid, recent activity feed with "Retake" shortcuts, empty state guidance, and reactive sync with storage events.
+
+

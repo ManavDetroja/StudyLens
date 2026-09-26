@@ -1,6 +1,6 @@
 # Task backlog
 
-## Completed — Day 1 through Day 11
+## Completed — Day 1 through Day 13
 
 - [x] Create the framework-free project scaffold.
 - [x] Build a responsive application shell with Dashboard, Library, Notes, Flashcards, Quizzes, Analytics, and Settings routes.
@@ -65,11 +65,33 @@
 - [x] Connect Dashboard Flashcards stat counter (`storageStatus.js`) to durable local storage with reactive event updates.
 - [x] Add responsive CSS styles for deck grids, 3D flip card, and mobile dialog actions (`css/components.css`, `css/responsive.css`).
 - [x] Add 21 comprehensive unit, service, and DOM component tests in `tests/flashcards.test.mjs`.
+- [x] Upgrade StudyLensDB to schema version 4 with the dedicated `quizzes` object store and indexes (`resourceId`, `createdAt`).
+- [x] Create `Quiz` and `QuizQuestion` data models, validation schema, and CRUD repository (`QuizRepository` in `js/storage/quizStore.js`).
+- [x] Create deterministic MCQ quiz generator (`js/processing/quizGenerator.js`) generating multiple-choice questions from definitions and questions with authentic distractors and preserved `sourceChunkIds`.
+- [x] Create quiz orchestration service (`js/features/quizService.js`) handling generation, persistence, deduplication on regeneration, cascading deletion, and reactive updates.
+- [x] Integrate "Generate quiz" / "Regenerate quiz" action and preview section into the Resource Viewer (`js/features/resourceViewer.js`, `js/features/learningOutputView.js`).
+- [x] Create interactive Quiz Player modal (`js/features/quizPlayer.js`, `index.html`) with single question view, option selection buttons with indicators (A, B, C, D), previous/next navigation, progress bar, score calculation (`X / Y Correct (Z%)`), question result breakdown, and in-place retry.
+- [x] Build active Quizzes main page (`js/features/quizPage.js`, `index.html`) with deck cards, question count badges, question preview, and "Take quiz" triggers.
+- [x] Connect Dashboard Quizzes stat counter (`storageStatus.js`) to durable local storage with reactive event updates.
+- [x] Add responsive CSS styles for quiz deck grids, player dialog, option buttons, and score breakdown (`css/components.css`, `css/responsive.css`).
+- [x] Upgrade StudyLensDB to schema version 5 with the dedicated `quizAttempts` object store and indexes (`quizId`, `resourceId`, `completedAt`, `createdAt`).
+- [x] Create `QuizAttempt` and `QuestionResult` data models, validation schema, and CRUD repository (`QuizAttemptRepository` in `js/storage/quizAttemptStore.js`).
+- [x] Implement deterministic Quiz Result Calculation service (`js/processing/quizScoreCalculator.js`) returning accurate score, percentage, correct/incorrect/unanswered counts, and grounded question results.
+- [x] Implement Quiz Attempt service (`js/features/quizAttemptService.js`) handling attempt recording, queries by quiz/resource/all, cascading deletion, and reactive event notifications (`quizattemptschanged`).
+- [x] Implement derived Quiz Analytics service (`js/features/analyticsService.js`) calculating total attempts, quizzes taken, average score %, highest score %, and recent activity feed.
+- [x] Enhance interactive Quiz Player modal (`js/features/quizPlayer.js`, `index.html`) with persistent attempt recording on submission, score statistics chips (Correct, Incorrect, Unanswered), question breakdown review, attempt history view, and safe memory-only retry.
+- [x] Add direct "History" action button on quiz cards in the Quizzes section (`js/features/quizPage.js`) allowing one-click access to past attempt history.
+- [x] Activate the Quiz Analytics main section (`#analytics`, `js/features/analyticsPage.js`, `index.html`) with aggregate metric cards, recent activity feed with "Retake" shortcuts, and honest empty state.
+- [x] Integrate cascading quiz attempt deletion in `js/features/resourceViewer.js` when deleting a parent resource.
+- [x] Add responsive CSS styles for quiz stats chips, attempt history modal list, and analytics cards (`css/components.css`, `css/responsive.css`).
+- [x] Add 24 comprehensive unit, calculation, service, and UI controller tests in `tests/quizAttempts.test.mjs`.
+- [x] Update native IndexedDB browser test suite (`tests/storage.browser-suite.js`) with schema v5 assertions.
 
 ## Next
 
-- [ ] Implement quiz challenge engine and interactive practice views built upon generated questions and definitions.
+- [ ] Implement Notes workspace, rich text editor, or spaced repetition review scheduling (Day 15+).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); interactive quiz test sessions; notes workspace; PDF, image, or video extraction; OCR; PDF parsing; video transcripts; analytics calculations; authentication; or backend services have been implemented. Only manually entered text has an active adapter, end-to-end processing pipeline, deterministic learning output generator, structured reader UI, and interactive flashcard review engine today.
+No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); notes workspace; PDF, image, or video extraction; OCR; PDF parsing; video transcripts; authentication; or backend services have been implemented. Only manually entered text has an active adapter, end-to-end processing pipeline, deterministic learning output generator, structured reader UI, interactive flashcard review engine, deterministic quiz system, and persistent quiz attempt results & analytics today.
+
