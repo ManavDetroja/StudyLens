@@ -96,12 +96,23 @@
 - [x] Ensure strict safe rendering (`textContent` exclusively, XSS resistant) for note titles, previews, tags, and badges.
 - [x] Add 24 comprehensive unit, validation, service, event, safe-rendering, and cascading cleanup tests in `tests/notes.test.mjs`.
 - [x] Update native IndexedDB browser test suite (`tests/storage.browser-suite.js`) with schema v6 assertions (18 passed checks).
+- [x] Upgrade StudyLensDB to schema version 7 with the dedicated `fileBlobs` object store keyed by `resourceId`.
+- [x] Implement File Blob repository (`FileBlobRepository` in `js/storage/fileBlobStore.js`) for durable binary file blob storage and deletion.
+- [x] Establish centralized file import configuration (`js/features/fileImportConfig.js`) with 50 MB limit, allowed MIME types, allowed extensions, and file size formatting helpers.
+- [x] Implement robust file import validation (`js/features/fileImportValidation.js`) enforcing size limits, MIME/extension verification, filename sanitization, and automatic title derivation.
+- [x] Implement two-tier atomic file import service (`js/features/fileImportService.js`) creating resource metadata and persisting file blobs with automatic rollback on storage failure.
+- [x] Build accessible file import dialog (`#file-import-dialog`, `js/features/fileImportForm.js`, `index.html`) with file picker, live metadata preview, derived title, tags input, and submit transitions.
+- [x] Wire Dashboard Quick Actions ("Upload PDF" and "Upload image") directly to the file import modal with pre-configured formats.
+- [x] Enhance Resource Viewer (`js/features/resourceViewer.js`, `index.html`) to display file information card (name, format, size, MIME type, pending status), hide text editing, disable generation for unextracted content, and render image previews with safe object URL lifecycle management (`URL.revokeObjectURL`).
+- [x] Integrate cascading file blob deletion in `js/features/resourceViewer.js` when deleting a parent resource.
+- [x] Update native IndexedDB browser test suite (`tests/storage.browser-suite.js`) with schema v7 assertions (19 passed checks).
+- [x] Add 18 comprehensive unit tests for file import config, validation, and atomic service rollback in `tests/fileImport.test.mjs`.
 
 ## Next
 
-- [ ] Implement spaced repetition review scheduling or multimodal source adapters (Day 16+).
+- [ ] Implement multimodal content extraction (PDF text parsing & image OCR) or spaced repetition review (Day 17).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; PDF, image, or video extraction; OCR; PDF parsing; video transcripts; authentication; or backend services have been implemented. Only manually entered text has an active adapter, end-to-end processing pipeline, deterministic learning output generator, structured reader UI, interactive flashcard review engine, deterministic quiz system, persistent quiz attempt results & analytics, and persistent notes workspace today.
+No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; PDF text extraction/parsing; image OCR; video transcripts; authentication; or backend services have been implemented. Only manually entered text has an active adapter, end-to-end processing pipeline, deterministic learning output generator, structured reader UI, interactive flashcard review engine, deterministic quiz system, persistent quiz attempt results & analytics, and persistent notes workspace today. Local PDF and image files can be ingested and stored locally (Day 16), but their content is not yet extracted or parsed.
 

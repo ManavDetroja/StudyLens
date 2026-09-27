@@ -24,12 +24,22 @@ import { openQuizPlayer } from './quizPlayer.js';
 import { renderLearningOutputs } from './learningOutputView.js';
 import { deleteNotesForResource } from './noteService.js';
 import { openNoteEditor } from './noteEditor.js';
+import { getFileBlob, deleteFileBlob } from './fileImportService.js';
+import { formatFileSize } from './fileImportConfig.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
 let isGenerating = false;
 let isGeneratingFlashcards = false;
 let isGeneratingQuiz = false;
+let activeBlobUrl = null;
+
+function revokeActiveBlobUrl() {
+    if (activeBlobUrl) {
+        URL.revokeObjectURL(activeBlobUrl);
+        activeBlobUrl = null;
+    }
+}
 
 function viewerDialog() {
     return document.getElementById('resource-viewer-dialog');
@@ -46,8 +56,86 @@ export function formatResourceDate(timestamp) {
         : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
 }
 
-export function renderResourceContent(contentElement, content) {
-    contentElement.textContent = content || 'No text content is available for this resource.';
+export function renderResourceContent(contentElement, content, resourceType = 'text') {
+    if (!contentElement) return;
+    if (content) {
+        contentElement.textContent = content;
+    } else if (resourceType === 'pdf' || resourceType === 'image') {
+        contentElement.textContent = 'This file has been saved locally in StudyLens. Content extraction will be available in a future update.';
+    } else {
+        contentElement.textContent = 'No text content is available for this resource.';
+    }
+}
+
+function renderFileSection(resource, fileBlobRecord) {
+    const fileSection = document.querySelector('[data-resource-viewer-file-section]');
+    const fileInfoContainer = document.querySelector('[data-resource-viewer-file-info]');
+    const imagePreviewContainer = document.querySelector('[data-resource-viewer-image-preview]');
+
+    revokeActiveBlobUrl();
+
+    if (!fileSection) return;
+
+    const isFileResource = resource.type === 'pdf' || resource.type === 'image';
+    if (!isFileResource) {
+        fileSection.hidden = true;
+        if (fileInfoContainer) fileInfoContainer.replaceChildren();
+        if (imagePreviewContainer) {
+            imagePreviewContainer.replaceChildren();
+            imagePreviewContainer.hidden = true;
+        }
+        return;
+    }
+
+    fileSection.hidden = false;
+
+    if (fileInfoContainer) {
+        fileInfoContainer.replaceChildren();
+
+        const originalName = resource.metadata?.originalFileName || resource.title;
+        const mimeType = resource.metadata?.mimeType || fileBlobRecord?.mimeType || 'Unknown';
+        const size = resource.metadata?.fileSize || fileBlobRecord?.size || 0;
+        const sizeStr = size > 0 ? formatFileSize(size) : 'Unknown size';
+        const extension = resource.metadata?.extension || '';
+
+        const items = [
+            { label: 'File name', value: originalName },
+            { label: 'Format', value: resource.type.toUpperCase() + (extension ? ` (${extension})` : '') },
+            { label: 'Size', value: sizeStr },
+            { label: 'MIME type', value: mimeType },
+            { label: 'Status', value: 'File saved locally (extraction pending)' },
+        ];
+
+        items.forEach(({ label, value }) => {
+            const dt = document.createElement('span');
+            dt.className = 'file-info-label';
+            dt.textContent = label + ':';
+            const dd = document.createElement('span');
+            dd.className = 'file-info-value';
+            dd.textContent = value;
+            fileInfoContainer.append(dt, dd);
+        });
+    }
+
+    if (imagePreviewContainer) {
+        imagePreviewContainer.replaceChildren();
+        if (resource.type === 'image' && fileBlobRecord?.blob) {
+            try {
+                activeBlobUrl = URL.createObjectURL(fileBlobRecord.blob);
+                const img = document.createElement('img');
+                img.src = activeBlobUrl;
+                img.alt = resource.title || 'Imported image';
+                img.loading = 'lazy';
+                imagePreviewContainer.append(img);
+                imagePreviewContainer.hidden = false;
+            } catch (blobErr) {
+                console.warn('Could not create object URL for image preview.', blobErr);
+                imagePreviewContainer.hidden = true;
+            }
+        } else {
+            imagePreviewContainer.hidden = true;
+        }
+    }
 }
 
 function renderTags(tags) {
@@ -70,7 +158,7 @@ function renderTags(tags) {
     });
 }
 
-function renderResource(resource, processed = null, outputsSummary = null, quiz = null) {
+function renderResource(resource, processed = null, outputsSummary = null, quiz = null, fileBlobRecord = null) {
     document.querySelector('[data-resource-viewer-title]').textContent = resource.title;
     document.querySelector('[data-resource-viewer-type]').textContent = resource.type;
     document.querySelector('[data-resource-viewer-date]').textContent = 'Created ' + formatResourceDate(resource.createdAt);
@@ -226,7 +314,8 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
         }
     }
 
-    renderResourceContent(document.querySelector('[data-resource-viewer-content]'), resource.content);
+    renderFileSection(resource, fileBlobRecord);
+    renderResourceContent(document.querySelector('[data-resource-viewer-content]'), resource.content, resource.type);
     renderTags(resource.tags);
 }
 
@@ -259,8 +348,17 @@ export async function openResourceViewer(resourceId) {
             // Quiz is an enhancement; proceed if unavailable
         }
 
+        let fileBlobRecord = null;
+        if (resource.type === 'pdf' || resource.type === 'image') {
+            try {
+                fileBlobRecord = await getFileBlob(resourceId);
+            } catch {
+                // File blob retrieval is an enhancement; proceed if unavailable
+            }
+        }
+
         activeResource = resource;
-        renderResource(resource, processed, outputsSummary, quiz);
+        renderResource(resource, processed, outputsSummary, quiz, fileBlobRecord);
         openDialog(viewerDialog());
     } catch (error) {
         console.error('StudyLens could not open the resource.', error);
@@ -453,6 +551,13 @@ export function initResourceViewer() {
                 console.warn('StudyLens could not clean up notes for deleted resource.', noteCleanupError);
             }
 
+            try {
+                await deleteFileBlob(pendingDeleteId);
+            } catch (fileBlobCleanupError) {
+                console.warn('StudyLens could not clean up file blob for deleted resource.', fileBlobCleanupError);
+            }
+
+            revokeActiveBlobUrl();
             notifyResourcesChanged({ action: 'deleted', resourceId: pendingDeleteId });
             showToast('Resource deleted.');
             activeResource = null;
@@ -464,5 +569,9 @@ export function initResourceViewer() {
             confirmButton.disabled = false;
             confirmButton.textContent = 'Delete resource';
         }
+    });
+
+    viewerDialog()?.addEventListener('close', () => {
+        revokeActiveBlobUrl();
     });
 }

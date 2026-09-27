@@ -1,13 +1,14 @@
 import { StorageError } from './errors.js';
 
 export const DATABASE_NAME = 'StudyLensDB';
-export const DATABASE_VERSION = 6;
+export const DATABASE_VERSION = 7;
 export const RESOURCE_STORE = 'resources';
 export const PROCESSED_CONTENT_STORE = 'processedContent';
 export const LEARNING_OUTPUT_STORE = 'learningOutputs';
 export const QUIZ_STORE = 'quizzes';
 export const QUIZ_ATTEMPT_STORE = 'quizAttempts';
 export const NOTE_STORE = 'notes';
+export const FILE_BLOB_STORE = 'fileBlobs';
 
 export const RESOURCE_INDEXES = Object.freeze([
     { name: 'type', keyPath: 'type' },
@@ -110,5 +111,12 @@ export function upgradeDatabaseSchema(database, transaction, oldVersion) {
             });
         }
     }
+
+    if (oldVersion < 7) {
+        if (!database.objectStoreNames.contains(FILE_BLOB_STORE)) {
+            database.createObjectStore(FILE_BLOB_STORE, { keyPath: 'resourceId' });
+        }
+    }
 }
+
 

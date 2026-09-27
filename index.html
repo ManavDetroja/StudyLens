@@ -202,11 +202,37 @@
             <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-dialog-close>Cancel</button><button class="button button-primary" type="submit" data-text-resource-submit>Save resource</button></div>
         </form>
     </dialog>
+    <dialog class="modal resource-dialog" id="file-import-dialog" aria-labelledby="file-import-dialog-title" aria-describedby="file-import-dialog-description" data-dialog>
+        <form id="file-import-form" novalidate>
+            <div class="modal-header"><div><p class="eyebrow">Import file</p><h2 id="file-import-dialog-title" data-file-import-title>Upload a file</h2></div><button class="icon-button" type="button" aria-label="Close file import form" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+            <p id="file-import-dialog-description" data-file-import-description>Import a PDF document or image file into your StudyLens library.</p>
+            <div class="form-stack">
+                <div class="field">
+                    <label for="file-import-input">Choose file</label>
+                    <input id="file-import-input" name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" required aria-describedby="file-import-file-help" />
+                    <p class="form-helper" id="file-import-file-help">Supported formats: PDF, JPG, PNG, WEBP. Maximum file size: 50 MB.</p>
+                </div>
+                <div class="file-import-preview" data-file-import-preview hidden>
+                    <p class="file-import-preview-name" data-file-import-preview-name></p>
+                    <p class="file-import-preview-meta" data-file-import-preview-meta></p>
+                </div>
+                <div class="field"><label for="file-import-title-input">Title</label><input id="file-import-title-input" name="title" type="text" autocomplete="off" required aria-describedby="file-import-title-help" /><p class="form-helper" id="file-import-title-help">Give this resource a clear, concise title. Defaults to the file name.</p></div>
+                <div class="field"><label for="file-import-tags">Tags <span class="optional-label">Optional</span></label><input id="file-import-tags" name="tags" type="text" autocomplete="off" placeholder="biology, chapter5, diagram" aria-describedby="file-import-tags-help" /><p class="form-helper" id="file-import-tags-help">Separate tags with commas. Duplicates and empty tags are removed.</p></div>
+                <p class="form-error" data-file-import-error role="alert" hidden></p>
+            </div>
+            <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-dialog-close>Cancel</button><button class="button button-primary" type="submit" data-file-import-submit disabled>Import file</button></div>
+        </form>
+    </dialog>
     <dialog class="modal resource-viewer-dialog" id="resource-viewer-dialog" aria-labelledby="resource-viewer-title" data-dialog>
         <div class="modal-header"><div><p class="eyebrow">Resource reader</p><h2 id="resource-viewer-title" data-resource-viewer-title>Resource</h2></div><button class="icon-button" type="button" aria-label="Close resource reader" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
         <div class="resource-viewer-body">
             <div class="resource-detail-meta"><span class="badge resource-type" data-resource-viewer-type>text</span><span class="resource-status" data-resource-viewer-status>completed</span><span data-resource-viewer-date>Created today</span><span data-resource-viewer-updated hidden></span><span class="resource-source" data-resource-viewer-source hidden></span><span class="badge resource-processed-badge" data-resource-viewer-processed hidden></span></div>
             <section aria-labelledby="resource-viewer-tags-heading"><h3 id="resource-viewer-tags-heading">Tags</h3><p class="form-helper" data-resource-viewer-no-tags>No tags added.</p><ul class="resource-tags" data-resource-viewer-tags></ul></section>
+            <section aria-labelledby="resource-viewer-file-heading" data-resource-viewer-file-section hidden>
+                <h3 id="resource-viewer-file-heading">File information</h3>
+                <div class="file-info-card" data-resource-viewer-file-info></div>
+                <div class="file-image-preview" data-resource-viewer-image-preview hidden></div>
+            </section>
             <section aria-labelledby="resource-viewer-content-heading"><h3 id="resource-viewer-content-heading">Content</h3><pre class="resource-content" data-resource-viewer-content></pre></section>
             <section class="resource-learning-outputs" aria-labelledby="resource-viewer-outputs-heading" data-resource-viewer-outputs-section>
                 <div class="learning-outputs-header">

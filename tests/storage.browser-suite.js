@@ -6,6 +6,7 @@ import { LearningOutputRepository } from '../js/storage/learningOutputStore.js';
 import { QuizRepository } from '../js/storage/quizStore.js';
 import { QuizAttemptRepository } from '../js/storage/quizAttemptStore.js';
 import { NoteRepository } from '../js/storage/noteStore.js';
+import { FileBlobRepository } from '../js/storage/fileBlobStore.js';
 import { processAndStore, getProcessedContent, deleteProcessedContent } from '../js/features/processingIntegration.js';
 
 function assert(condition, message) {
@@ -64,6 +65,9 @@ export async function runStorageBrowserSuite() {
     const noteRepository = new NoteRepository({
         database: connection,
     });
+    const blobRepository = new FileBlobRepository({
+        database: connection,
+    });
     const results = [];
 
     try {
@@ -99,7 +103,8 @@ export async function runStorageBrowserSuite() {
         ['resourceId', 'updatedAt', 'createdAt'].forEach((index) => {
             assert(noteStore.indexNames.contains(index), 'Missing notes index: ' + index + '.');
         });
-        results.push('Database schema and indexes created (v6 with notes)');
+        assert(database.objectStoreNames.contains('fileBlobs'), 'The fileBlobs store was not created.');
+        results.push('Database schema and indexes created (v7 with fileBlobs)');
 
         const created = await repository.createResource(createTextResourceInput({
             title: ' Storage test resource ',
@@ -293,7 +298,20 @@ export async function runStorageBrowserSuite() {
         const deletedNotesCount = await noteRepository.deleteNotesByResource(created.id);
         assert(deletedNotesCount === 1, 'Expected 1 deleted note.');
         assert((await noteRepository.getNotesByResource(created.id)).length === 0, 'Notes remained after deletion.');
-        results.push('Note cascade deletion');
+        // Day 16: File blob persistence and retrieval
+        const testBlob = new Blob(['%PDF-1.4 test file content'], { type: 'application/pdf' });
+        await blobRepository.saveFileBlob(created.id, testBlob);
+        const retrievedBlob = await blobRepository.getFileBlob(created.id);
+        assert(retrievedBlob !== null, 'File blob could not be retrieved.');
+        assert(retrievedBlob.resourceId === created.id, 'Blob resourceId mismatch.');
+        assert(retrievedBlob.mimeType === 'application/pdf', 'Blob mimeType mismatch.');
+        assert(retrievedBlob.size === testBlob.size, 'Blob size mismatch.');
+        results.push('File blob storage and retrieval');
+
+        const blobDeleted = await blobRepository.deleteFileBlob(created.id);
+        assert(blobDeleted === true, 'Delete file blob failed.');
+        assert((await blobRepository.getFileBlob(created.id)) === null, 'Blob still existed after delete.');
+        results.push('File blob deletion');
 
         assert(await repository.deleteResource(created.id), 'Delete did not report success.');
         assert(await repository.getResource(created.id) === null, 'Deleted resource was still available.');

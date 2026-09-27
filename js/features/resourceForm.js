@@ -9,11 +9,10 @@ import {
     createTextResourceInput,
     createTextResourceUpdate,
 } from './textResourceInput.js';
+import { openFileImportForm } from './fileImportForm.js';
 
 const resourceMessages = {
     video: { title: 'Video import is planned', description: 'Adding video links is a future source-adapter feature. No video is being processed yet.' },
-    pdf: { title: 'PDF upload is planned', description: 'PDF import and content extraction will be added in a later development phase. No file is being uploaded yet.' },
-    image: { title: 'Image import is planned', description: 'Image upload and OCR will be added in a later development phase. No image is being uploaded yet.' },
 };
 
 const featureMessages = {
@@ -78,12 +77,23 @@ export function initResourceActions() {
                 openTextResourceForm();
                 return;
             }
+            if (action === 'pdf' || action === 'image') {
+                openFileImportForm({ preselectedType: action });
+                return;
+            }
             showModal(resourceMessages[action]);
         });
     });
 
     document.querySelectorAll('[data-open-text-resource]').forEach((button) => {
         button.addEventListener('click', () => openTextResourceForm());
+    });
+
+    document.querySelectorAll('[data-open-file-import]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const preselectedType = button.dataset.openFileImport || null;
+            openFileImportForm({ preselectedType });
+        });
     });
 
     document.querySelectorAll('[data-feature-action]').forEach((button) => {

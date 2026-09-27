@@ -218,4 +218,20 @@ export interface Note {
     updatedAt: string;
 }
 
+/** Extensible, non-sensitive file resource metadata (Day 16). */
+export interface FileResourceMetadata extends ResourceMetadata {
+    entryMethod: 'file-import';
+    originalFileName: string;
+    mimeType: string;
+    fileSize: number;
+    extension: string;
+}
 
+/** Persisted File Blob record in IndexedDB (Day 16). */
+export interface FileBlobRecord {
+    resourceId: string;
+    blob: Blob;
+    mimeType: string;
+    size: number;
+    savedAt: string;
+}

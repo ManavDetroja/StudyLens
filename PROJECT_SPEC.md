@@ -4,8 +4,8 @@
 
 ## Inputs
 - Video URLs (future)
-- PDF files (future)
-- Image files (future)
+- PDF files (local file import foundation available; content extraction in future phase)
+- Image files (local file import foundation available; OCR in future phase)
 - Plain text material (available through manual text entry)
 
 ## Planned outputs
@@ -98,3 +98,29 @@ Processed Content → Content Analysis → Learning Output Generator → Learnin
 - **Regeneration**: Running generation again replaces previous outputs for the resource, preventing duplicate or stale records.
 - **User Interface**: The Resource Viewer contains an on-demand "Generate learning outputs" button and shows an outputs summary badge.
 - **Pure Client-Side**: No external AI APIs, LLMs, API keys, or external NLP libraries are used.
+
+## Local file import foundation (Day 16)
+
+Day 16 establishes client-side ingestion and persistent storage of local PDF and image files without external servers, APIs, or content extraction:
+- **Scope & Boundary**: Ingestion and local persistence foundation only. No PDF text parsing, no OCR, and no AI processing are performed in Day 16.
+- **Storage Architecture (StudyLensDB v7)**:
+  - Database schema upgraded to version 7.
+  - Dedicated `fileBlobs` object store keyed by `resourceId`.
+  - Stored records contain `resourceId`, binary `blob` (as native `Blob`/`File`), `mimeType`, `size`, and `savedAt`.
+  - Keeps binary payloads isolated from resource listing metadata to prevent query degradation.
+- **Resource Model Integration**:
+  - Reuses the existing `Resource` model with `type: 'pdf'` or `type: 'image'`.
+  - `status: 'pending'` (accurately reflecting that content extraction has not run yet).
+  - `content: null`.
+  - `metadata`: `entryMethod: 'file-import'`, `originalFileName`, `mimeType`, `fileSize`, `extension`.
+- **Validation**:
+  - Maximum file size: 50 MB (configurable via `FILE_IMPORT_CONFIG`).
+  - Supported MIME types: `application/pdf`, `image/jpeg`, `image/jpg`, `image/png`, `image/webp`.
+  - Extension fallbacks for operating systems that omit MIME types.
+  - Non-empty files enforced; sanitization for filenames.
+- **User Interface**:
+  - File import dialog (`#file-import-dialog`) with file picker, format helper, live metadata preview, default derived title, and tags editor.
+  - Dashboard quick actions for PDF and Image wired directly to file import dialog.
+  - Resource Viewer (`#resource-viewer-dialog`) displays file details card (name, format, size, MIME type, pending status), hides text edit button, disables output generation, and provides image thumbnail previews for image resources with safe object URL lifecycle management.
+  - Cascading delete: deleting a file resource purges its entry from `fileBlobs`.
+

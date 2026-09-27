@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.16.0 — 2026-09-27
+
+- Implemented the Local File Import Foundation for PDF and image files in StudyLens without backend services, external frameworks, cloud storage, or external APIs.
+- Upgraded StudyLensDB to schema version 7, introducing the dedicated `fileBlobs` object store keyed by `resourceId` to store binary payloads separately from resource metadata queries.
+- Added `js/storage/fileBlobStore.js` with `FileBlobRepository` exposing `saveFileBlob`, `getFileBlob`, and `deleteFileBlob` following the native IndexedDB repository pattern.
+- Established centralized file import configuration in `js/features/fileImportConfig.js`:
+  - 50 MB maximum file size limit (`FILE_IMPORT_CONFIG.maxFileSizeBytes`).
+  - Whitelist of allowed MIME types (`application/pdf`, `image/jpeg`, `image/jpg`, `image/png`, `image/webp`).
+  - Whitelist of allowed file extensions (`.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp`).
+  - Helper functions for file size formatting, resource type derivation, and extension-based MIME fallbacks.
+- Added robust file import validation in `js/features/fileImportValidation.js`:
+  - `validateFile` enforces non-empty file payloads, size boundaries, and allowed file formats.
+  - `sanitizeFilename` strips path traversal characters and illegal symbols.
+  - `deriveTitle` generates human-friendly document titles from file names.
+  - `validateFileImportInput` and `createFileResourceInput` validate and produce clean `Resource` records (`type: 'pdf' | 'image'`, `status: 'pending'`, `content: null`).
+- Added two-tier atomic file import orchestration in `js/features/fileImportService.js`:
+  - Validates file and creates `Resource` record in the `resources` store.
+  - Saves binary blob into the `fileBlobs` store.
+  - Guarantees rollback: automatically deletes the created resource if blob persistence fails.
+  - Dispatches `resourceschanged` event to update Dashboard and Library views.
+- Built the File Import Dialog (`#file-import-dialog`, `index.html`, `js/features/fileImportForm.js`, `css/components.css`):
+  - Accessible native `<dialog>` with `<form>` and file picker.
+  - Live metadata preview displaying sanitized file name, format badge, and formatted size.
+  - Pre-populated title input and tags editor with normalization.
+  - Submit button disabled until valid file selection; loading feedback ("Importing…").
+- Connected Dashboard Quick Actions: "Upload PDF" and "Upload image" action buttons open the file import modal with pre-configured accept filters and titles.
+- Enhanced Resource Viewer (`#resource-viewer-dialog`, `js/features/resourceViewer.js`, `css/components.css`):
+  - Displays File Information section with file name, format, formatted size, MIME type, and pending status.
+  - For image resources, renders responsive image preview thumbnail using browser-managed object URLs (`URL.createObjectURL`).
+  - Manages object URL lifecycle: automatically revokes object URLs on dialog close (`URL.revokeObjectURL`) to prevent memory leaks.
+  - Hides text editing (`resource.type !== 'text'`) and disables study aid generation for unextracted content.
+  - Clear content message indicates file is saved locally with content extraction planned for a future update.
+- Implemented cascading file blob cleanup in `resourceViewer.js`: deleting a resource automatically deletes its associated binary blob from `fileBlobs`.
+- Added 18 comprehensive unit tests in `tests/fileImport.test.mjs` (266 tests total across the suite, 265 passing in Node, 1 skipped for browser-only IndexedDB).
+- Updated and verified the native IndexedDB browser test suite (`tests/storage.browser-suite.js`, `tests/storage.browser.html`) with schema v7 assertions (19 passed checks).
+- Fully verified end-to-end functionality via automated headless Chrome CDP browser audit across 10 verification steps with zero regressions.
+
 ## 0.15.0 — 2026-09-26
 
 - Implemented the complete, persistent Notes Workspace in StudyLens without backend services, external libraries, cloud storage, or AI/LLM APIs.

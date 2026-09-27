@@ -57,7 +57,7 @@ The UI never opens IndexedDB directly. js/features/storageStatus.js coordinates 
 #### Database schema
 
 - Database: StudyLensDB
-- Schema version: 6
+- Schema version: 7
 - Object stores:
   - `resources`, keyed by the immutable Resource id (non-unique indexes: type, createdAt, updatedAt, and status)
   - `processedContent`, keyed by UUID id (unique index: resourceId)
@@ -65,8 +65,9 @@ The UI never opens IndexedDB directly. js/features/storageStatus.js coordinates 
   - `quizzes`, keyed by UUID id (indexes: resourceId, createdAt)
   - `quizAttempts`, keyed by UUID id (indexes: quizId, resourceId, completedAt, createdAt)
   - `notes`, keyed by UUID id (indexes: resourceId, updatedAt, createdAt)
+  - `fileBlobs`, keyed by the immutable Resource id (`resourceId`)
 
-The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, querying learning outputs by resource, type, creation date, or source chunk, fast retrieval/cleanup of quizzes by parent resourceId, efficient chronological filtering and lookup of quiz attempt histories by quiz or parent resource, and fast retrieval/cleanup and chronological sorting of user notes.
+The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, querying learning outputs by resource, type, creation date, or source chunk, fast retrieval/cleanup of quizzes by parent resourceId, efficient chronological filtering and lookup of quiz attempt histories by quiz or parent resource, fast retrieval/cleanup and chronological sorting of user notes, and direct isolation of heavy binary file blobs from metadata querying.
 
 ### Storage modules
 
@@ -77,10 +78,11 @@ The indexes support resource-type views, processing queues, chronological listin
 - js/storage/processedContentStore.js exposes the ProcessedContent repository API for durable processed content storage.
 - js/storage/learningOutputValidation.js owns learning output validation, UUID generation, and immutable-field checks.
 - js/storage/learningOutputStore.js exposes LearningOutputRepository for durable study aids storage.
+- js/storage/fileBlobStore.js exposes FileBlobRepository for durable binary file blob storage.
 
 ### Migration strategy
 
-Schema changes increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Version 2 introduced the `processedContent` store with a unique `resourceId` index. Version 3 introduced the `learningOutputs` store with `resourceId`, `type`, `createdAt`, and multi-entry `sourceChunkIds` indexes while preserving all existing data.
+Schema changes increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Version 2 introduced the `processedContent` store with a unique `resourceId` index. Version 3 introduced the `learningOutputs` store with `resourceId`, `type`, `createdAt`, and multi-entry `sourceChunkIds` indexes. Version 4 added the `quizzes` store. Version 5 added the `quizAttempts` store. Version 6 added the `notes` store. Version 7 added the `fileBlobs` store keyed by `resourceId`. All migrations preserve existing data.
 
 ### Resource model
 
@@ -407,6 +409,60 @@ Day 15 establishes the persistent, standalone and resource-linked Notes Workspac
   - Live Notes counter (`<strong data-stat="notes">`) updated on app startup and reactively synchronized via `onNotesChanged`.
 - **Strict Safe Rendering**:
   - All user content rendered strictly via `textContent`, with zero HTML interpretation and verified XSS attack prevention.
+
+## Local File Import Foundation (Day 16)
+
+Day 16 establishes the persistent local PDF and image ingestion foundation for StudyLens without external servers, backend microservices, cloud storage, or external APIs:
+
+    UI (Quick Actions & File Import Dialog #file-import-dialog)
+      ↓
+    Validation (fileImportValidation.js) & Configuration (fileImportConfig.js)
+      ↓
+    File Import Service (fileImportService.js)
+      ↓
+    Two-tier Atomic Persistence:
+      - Resource Metadata (ResourceRepository in StudyLensDB v7 `resources` store)
+      - Binary File Blob (FileBlobRepository in StudyLensDB v7 `fileBlobs` store)
+      (with automatic rollback of resource record on blob storage failure)
+      ↓
+    Reactive Events (js/core/resourceEvents.js: resourceschanged)
+
+### Architecture Principles & Storage Isolation
+- **Pure Ingestion & Persistence Boundary**: Day 16 is solely focused on ingestion and persistent storage of PDF documents and image files. Content extraction (PDF text parsing, image OCR) and AI processing remain decoupled and reserved for future source adapter phases.
+- **Store Separation for Performance (StudyLensDB v7)**: Binary file blobs are stored in a dedicated `fileBlobs` object store keyed by `resourceId`, separate from `resources`. This prevents heavy binary payloads from being loaded when listing, searching, filtering, or counting resources.
+- **Single Source of Truth**: The existing `Resource` model is reused directly (`type: 'pdf' | 'image'`, `status: 'pending'`, `content: null`). The `pending` status accurately communicates that the file is stored locally, but extraction has not yet been executed.
+- **Rollback Guarantee**: In `importFile`, if storing the blob fails for any reason (e.g. storage quota exceeded), the newly created resource record is automatically deleted (rolled back), preventing orphaned metadata records.
+
+### Validation & Configuration
+- `js/features/fileImportConfig.js`: Configurable constraints:
+  - Max file size: 50 MB (`FILE_IMPORT_CONFIG.maxFileSizeBytes`).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/jpg`, `image/png`, `image/webp`.
+  - Allowed extensions: `.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp`.
+  - Helpers: `formatFileSize`, `getResourceTypeFromMime`, `getResourceTypeFromExtension`, `getMimeTypeFromExtension`.
+- `js/features/fileImportValidation.js`:
+  - `validateFile`: Enforces non-empty file, size limit, and allowed format with fallback to file extension when OS/browser omits MIME type.
+  - `sanitizeFilename`: Strips directory traversal sequences (`..`), control characters, and illegal path tokens.
+  - `deriveTitle`: Extracts clean document title from filename without extension, capped at 160 characters.
+  - `validateFileImportInput`: Enforces title presence and length, validates tags.
+  - `createFileResourceInput`: Returns clean resource model with `entryMethod: 'file-import'`, `originalFileName`, `mimeType`, `fileSize`, `extension`.
+
+### User Interface & Experience
+- **File Import Dialog (`#file-import-dialog`)**:
+  - Accessible native `<dialog>` with `<form>` and file picker.
+  - Live metadata preview showing sanitized filename, format badge, and formatted size.
+  - Title input pre-populated with derived filename while allowing custom user editing.
+  - Tags input with comma-separated normalization.
+  - Submit button disabled until valid file is selected; loading transition ("Importing…").
+- **Dashboard Quick Actions**: "Upload PDF" and "Upload image" quick-action cards open the file import modal with pre-configured accept filters and titles.
+- **Resource Viewer Integration**:
+  - File Information Card: Displays original file name, format, formatted size, MIME type, and extraction status.
+  - Image Preview: Renders responsive image thumbnail using browser-managed object URL (`URL.createObjectURL`).
+  - Object URL Lifecycle: Object URLs are safely revoked upon viewer closure (`URL.revokeObjectURL`) to prevent memory leaks, and are never persisted to storage.
+  - Non-Text Guards: Text editing is hidden (`resource.type !== 'text'`), and study aid generation buttons ("Generate learning outputs", "Generate flashcards", "Generate quiz") remain disabled until extracted content exists.
+- **Library Integration & Cascading Cleanup**:
+  - Library filtering by type (`pdf`, `image`) and status (`pending`) works out-of-the-box.
+  - Deleting a resource cascades to `deleteFileBlob(resourceId)`, cleaning up the binary blob from `fileBlobs`.
+
 
 
 
