@@ -82,7 +82,7 @@ The indexes support resource-type views, processing queues, chronological listin
 
 ### Migration strategy
 
-Schema changes increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Version 2 introduced the `processedContent` store with a unique `resourceId` index. Version 3 introduced the `learningOutputs` store with `resourceId`, `type`, `createdAt`, and multi-entry `sourceChunkIds` indexes. Version 4 added the `quizzes` store. Version 5 added the `quizAttempts` store. Version 6 added the `notes` store. Version 7 added the `fileBlobs` store keyed by `resourceId`. All migrations preserve existing data.
+Schema changes increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Version 2 introduced the `processedContent` store with a unique `resourceId` index. Version 3 introduced the `learningOutputs` store with `resourceId`, `type`, `createdAt`, and multi-entry `sourceChunkIds` indexes. Version 4 added the `quizzes` store. Version 5 added the `quizAttempts` store. Version 6 added the `notes` store. Version 7 added the `fileBlobs` store keyed by `resourceId`. Version 8 introduced a comprehensive self-healing migration (`ensureAllRequiredStoresAndIndexes`) and post-open schema verification that automatically reconciles and creates any missing stores or indexes from partial or out-of-order upgrades without touching existing data. All migrations preserve existing data.
 
 ### Resource model
 
@@ -462,6 +462,47 @@ Day 16 establishes the persistent local PDF and image ingestion foundation for S
 - **Library Integration & Cascading Cleanup**:
   - Library filtering by type (`pdf`, `image`) and status (`pending`) works out-of-the-box.
   - Deleting a resource cascades to `deleteFileBlob(resourceId)`, cleaning up the binary blob from `fileBlobs`.
+
+## Day 17 Browser-based PDF Text Extraction
+
+StudyLens implements pure client-side PDF text extraction for local PDF resources, enabling offline study aid generation from uploaded lecture notes, textbooks, and research papers.
+
+### Architecture Principles & Processing Flow
+```
+Local PDF File
+  ↓ (fileImportService)
+IndexedDB (`fileBlobs`)
+  ↓ (getFileBlob)
+PDF Source Adapter (`js/processing/pdfAdapter.js`)
+  ↓
+PDF Extractor (`js/processing/pdfExtractor.js` via PDF.js)
+  ↓ Page-by-page text with boundaries
+Text Normalizer (`js/processing/textNormalizer.js`)
+  ↓ + Page offsets mapping (`pageOffsets`)
+Content Chunker (`js/processing/contentProcessingPipeline.js`)
+  ↓ + Page traceability (`enrichSegmentsWithPages`)
+IndexedDB (`processedContent`) + Resource (`status: 'completed'`, `content: text`)
+  ↓
+Downstream Study Engines:
+  ├── Learning Outputs (Summary, Concepts, Definitions, Questions)
+  ├── Flashcard Generator
+  └── Quiz Generator
+```
+
+### Module Responsibilities
+- **Vendored PDF Engine (`js/vendor/pdf/`)**: PDF.js (v3.11.174 legacy build) is vendored directly into the codebase (`pdf.min.js`, `pdf.js`, `pdf.worker.min.js`, `pdf.worker.js`). No remote script tags, CDNs, or external npm runtime dependencies are required.
+- **Universal Loader (`js/processing/pdfParserLoader.js`)**: Exports `getPdfJs()`. In browser environments, attaches worker source path (`js/vendor/pdf/pdf.worker.js`) to `window.pdfjsLib`. In Node environments (automated tests), imports via Node module loader.
+- **PDF Text Extractor (`js/processing/pdfExtractor.js`)**: Pure extractor function `extractPdfText(input, options)`. Accepts `Blob`, `File`, `ArrayBuffer`, or `Uint8Array`. Iterates through all document pages sequentially, extracts text content items, and builds structured page objects with 1-based page numbers. Validates that the document has pages, parses correctly, and contains non-whitespace selectable text (throwing `NO_SELECTABLE_TEXT` when text is absent).
+- **PDF Source Adapter (`js/processing/pdfAdapter.js`)**: Conforms to the `SourceAdapter` contract (`canHandle`, `extract`, `normalize`). Retrieves the binary blob from `fileBlobStore` (or directly from options), invokes `extractPdfText`, normalizes extracted text via `normalizeTextContent`, and tracks character start and end offsets per page (`pageOffsets`).
+- **Chunk Enrichment & Traceability (`js/processing/contentProcessingPipeline.js`)**: After chunking normalized text, `enrichSegmentsWithPages(segments, pageOffsets)` maps chunk character spans `[startOffset, endOffset]` to overlapping PDF page numbers, decorating each segment with `pageNumber` (first overlapping page) and `pages` (array of all overlapping pages).
+- **Integration Orchestrator (`js/features/processingIntegration.js`)**: `processAndStore` sets status to `'processing'`, executes extraction and chunking, updates the resource with `status: 'completed'` and `content: normalizedContent.text`, persists chunks into `processedContent`, and dispatches `notifyResourcesChanged`. On error, transitions to `status: 'failed'` and stores `metadata.processingError` and `metadata.processingErrorCode`.
+- **Resource Viewer Integration (`js/features/resourceViewer.js`)**:
+  - Adds the "Extract PDF content" button for PDF resources.
+  - Dynamically switches button state to "Extracting…" (disabled) during processing and "Reprocess PDF" upon completion.
+  - Formats multi-page extracted PDF content with page boundary headers (`--- Page 1 ---`, `--- Page 2 ---`, etc.).
+  - Displays color-coded status badges for `pending`, `processing`, `completed`, and `failed`.
+  - Handles `NO_SELECTABLE_TEXT` gracefully by presenting a user-friendly toast notice ("No selectable text was found in this PDF. OCR will be supported in a future milestone.") without crashing.
+- **Downstream Feature Parity**: Extracted PDF content enables all existing study aid engines (Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes). Reprocessing re-runs the pipeline idempotently, cleaning up old chunks and updating study outputs without duplicate accumulation.
 
 
 

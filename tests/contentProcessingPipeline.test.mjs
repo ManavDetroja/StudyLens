@@ -35,8 +35,8 @@ test('pipeline validates, extracts, normalizes, and chunks a text resource', asy
 test('pipeline reports an unsupported but otherwise valid resource type', async () => {
     await assert.rejects(
         () => processResource(createResource({
-            type: 'pdf',
-            content: 'A PDF would require a future adapter.',
+            type: 'image',
+            content: null,
             status: 'pending',
         })),
         { code: 'UNSUPPORTED_RESOURCE_TYPE' },

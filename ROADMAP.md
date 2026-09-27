@@ -18,11 +18,12 @@
 - Day 14: Persistent Quiz Attempt Results & Basic Analytics: StudyLensDB v5 (`quizAttempts` store), QuizAttempt and QuestionResult models, deterministic score calculation, persistent attempt recording, Quiz Player results & attempt history modal, Quizzes page History action, reactive Quiz Analytics page (`#analytics`), and cascading deletion. Complete.
 - Day 15: Persistent Notes Workspace: StudyLensDB v6 (`notes` store), Note model, NoteRepository, NoteService, dedicated Notes page (`#notes`) with responsive grid, search & resource filtering, Note Editor dialog with standalone & linked modes, Resource Viewer integration, dashboard counter, and cascading deletion. Complete.
 - Day 16: Local File Import Foundation: client-side PDF and image ingestion, StudyLensDB v7 (`fileBlobs` store), FileBlobRepository, file validation and size enforcement, file import dialog with live preview, Dashboard quick actions, Resource Viewer file info & image preview with object URL lifecycle, and cascading delete. Complete.
-- Next: Day 17 — Multimodal content extraction (PDF text parsing & image OCR) or spaced repetition review.
+- Day 17: Browser-based PDF Text Extraction: offline PDF.js integration, pure client-side page-by-page text extractor, PDF Source Adapter, content processing pipeline integration with chunk page traceability, status lifecycle management, Resource Viewer extraction controls & multi-page formatting, and seamless downstream learning output, flashcard, and quiz generation. Complete.
+- Next: Day 18 — Image & Scanned PDF OCR extraction or spaced repetition review.
 
 ## V2 — Content processing
 
-- Source adapters for video URLs, PDF text parsing, and image/OCR extraction.
+- Source adapters for video URLs and image/OCR extraction.
 - AI provider integration and generation of learning outputs.
 
 ## V3 — Learning intelligence
@@ -31,7 +32,7 @@
 - Spaced repetition review and knowledge retention tracking.
 - Advanced analytics, spaced repetition algorithms, and knowledge-graph capabilities.
 
-Only the Day 16 text-processing pipeline, local file import foundation, persistent storage (StudyLensDB v7), deterministic learning output engine, structured reader UI, flashcards study system, interactive quiz player, persistent quiz attempt results & basic analytics, and persistent notes workspace are implemented now. Additional V2 and all V3 items are plans, not active features.
+Only the Day 17 text- and PDF-processing pipeline, local file import foundation, persistent storage (StudyLensDB v8), deterministic learning output engine, structured reader UI, flashcards study system, interactive quiz player, persistent quiz attempt results & basic analytics, and persistent notes workspace are implemented now. Additional V2 and all V3 items are plans, not active features.
 
 
 

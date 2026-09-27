@@ -26,12 +26,14 @@ import { deleteNotesForResource } from './noteService.js';
 import { openNoteEditor } from './noteEditor.js';
 import { getFileBlob, deleteFileBlob } from './fileImportService.js';
 import { formatFileSize } from './fileImportConfig.js';
+import { processAndStore } from './processingIntegration.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
 let isGenerating = false;
 let isGeneratingFlashcards = false;
 let isGeneratingQuiz = false;
+let isExtractingPdf = false;
 let activeBlobUrl = null;
 
 function revokeActiveBlobUrl() {
@@ -56,12 +58,21 @@ export function formatResourceDate(timestamp) {
         : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
 }
 
-export function renderResourceContent(contentElement, content, resourceType = 'text') {
+export function renderResourceContent(contentElement, content, resourceType = 'text', processed = null) {
     if (!contentElement) return;
+
+    if (resourceType === 'pdf' && processed?.metadata?.pages && Array.isArray(processed.metadata.pages) && processed.metadata.pages.length > 0) {
+        const pageSections = processed.metadata.pages.map((p) => `--- Page ${p.pageNumber} ---\n\n${p.text}`);
+        contentElement.textContent = pageSections.join('\n\n');
+        return;
+    }
+
     if (content) {
         contentElement.textContent = content;
-    } else if (resourceType === 'pdf' || resourceType === 'image') {
-        contentElement.textContent = 'This file has been saved locally in StudyLens. Content extraction will be available in a future update.';
+    } else if (resourceType === 'pdf') {
+        contentElement.textContent = 'This PDF has been saved locally. Click "Extract PDF content" below to extract readable text and study aids.';
+    } else if (resourceType === 'image') {
+        contentElement.textContent = 'This image has been saved locally in StudyLens. Content extraction will be available in a future update.';
     } else {
         contentElement.textContent = 'No text content is available for this resource.';
     }
@@ -98,12 +109,21 @@ function renderFileSection(resource, fileBlobRecord) {
         const sizeStr = size > 0 ? formatFileSize(size) : 'Unknown size';
         const extension = resource.metadata?.extension || '';
 
+        let statusText = 'File saved locally (extraction pending)';
+        if (resource.status === 'completed') {
+            statusText = resource.type === 'pdf' ? 'Content extracted & ready' : 'Completed';
+        } else if (resource.status === 'processing') {
+            statusText = 'Extracting content…';
+        } else if (resource.status === 'failed') {
+            statusText = 'Extraction failed';
+        }
+
         const items = [
             { label: 'File name', value: originalName },
             { label: 'Format', value: resource.type.toUpperCase() + (extension ? ` (${extension})` : '') },
             { label: 'Size', value: sizeStr },
             { label: 'MIME type', value: mimeType },
-            { label: 'Status', value: 'File saved locally (extraction pending)' },
+            { label: 'Status', value: statusText },
         ];
 
         items.forEach(({ label, value }) => {
@@ -162,7 +182,11 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
     document.querySelector('[data-resource-viewer-title]').textContent = resource.title;
     document.querySelector('[data-resource-viewer-type]').textContent = resource.type;
     document.querySelector('[data-resource-viewer-date]').textContent = 'Created ' + formatResourceDate(resource.createdAt);
-    document.querySelector('[data-resource-viewer-status]').textContent = resource.status;
+    const statusEl = document.querySelector('[data-resource-viewer-status]');
+    if (statusEl) {
+        statusEl.textContent = resource.status;
+        statusEl.dataset.status = resource.status;
+    }
     document.querySelector('[data-resource-viewer-edit]').hidden = resource.type !== 'text';
 
     /* Updated date — show only when meaningfully different from created date */
@@ -199,9 +223,22 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
     const outputsSummaryElement = document.querySelector('[data-resource-viewer-outputs-summary]');
     const outputsBadge = document.querySelector('[data-resource-viewer-outputs-badge]');
     const outputsContainer = document.querySelector('[data-resource-viewer-outputs-container]');
-    const generateBtn = document.querySelector('[data-resource-viewer-generate]');
+    const extractPdfBtn = document.querySelector('[data-resource-viewer-extract-pdf]');
+    if (extractPdfBtn) {
+        if (resource.type === 'pdf') {
+            extractPdfBtn.hidden = false;
+            const hasExtracted = resource.status === 'completed' || Boolean(processed?.normalizedText);
+            extractPdfBtn.textContent = isExtractingPdf ? 'Extracting…' : (hasExtracted ? 'Reprocess PDF' : 'Extract PDF content');
+            extractPdfBtn.disabled = isExtractingPdf;
+        } else {
+            extractPdfBtn.hidden = true;
+        }
+    }
 
-    const hasContent = typeof resource.content === 'string' && resource.content.trim().length > 0;
+    const hasContent = Boolean(
+        (typeof resource.content === 'string' && resource.content.trim().length > 0) ||
+        (processed && typeof processed.normalizedText === 'string' && processed.normalizedText.trim().length > 0)
+    );
     const hasOutputs = Boolean(outputsSummary && outputsSummary.hasOutputs);
 
     if (outputsBadge) {
@@ -241,6 +278,7 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
         }
     }
 
+    const generateBtn = document.querySelector('[data-resource-viewer-generate]');
     if (generateBtn) {
         if (!hasContent) {
             generateBtn.disabled = true;
@@ -315,8 +353,47 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
     }
 
     renderFileSection(resource, fileBlobRecord);
-    renderResourceContent(document.querySelector('[data-resource-viewer-content]'), resource.content, resource.type);
+    renderResourceContent(document.querySelector('[data-resource-viewer-content]'), resource.content, resource.type, processed);
     renderTags(resource.tags);
+}
+
+export async function refreshResourceViewer(resourceId) {
+    const resource = await resourceRepository.getResource(resourceId);
+    if (!resource) return null;
+    activeResource = resource;
+
+    let processed = null;
+    try {
+        processed = await getProcessedContent(resourceId);
+    } catch {
+        // Enhancement
+    }
+
+    let outputsSummary = null;
+    try {
+        outputsSummary = await getLearningOutputsSummaryForResource(resourceId);
+    } catch {
+        // Enhancement
+    }
+
+    let quiz = null;
+    try {
+        quiz = await getQuizForResource(resourceId);
+    } catch {
+        // Enhancement
+    }
+
+    let fileBlobRecord = null;
+    if (resource.type === 'pdf' || resource.type === 'image') {
+        try {
+            fileBlobRecord = await getFileBlob(resourceId);
+        } catch {
+            // Enhancement
+        }
+    }
+
+    renderResource(resource, processed, outputsSummary, quiz, fileBlobRecord);
+    return { resource, processed, outputsSummary, quiz, fileBlobRecord };
 }
 
 export async function openResourceViewer(resourceId) {
@@ -327,38 +404,7 @@ export async function openResourceViewer(resourceId) {
             return;
         }
 
-        let processed = null;
-        try {
-            processed = await getProcessedContent(resourceId);
-        } catch {
-            // Processed content is an enhancement; proceed if unavailable
-        }
-
-        let outputsSummary = null;
-        try {
-            outputsSummary = await getLearningOutputsSummaryForResource(resourceId);
-        } catch {
-            // Learning outputs are an enhancement; proceed if unavailable
-        }
-
-        let quiz = null;
-        try {
-            quiz = await getQuizForResource(resourceId);
-        } catch {
-            // Quiz is an enhancement; proceed if unavailable
-        }
-
-        let fileBlobRecord = null;
-        if (resource.type === 'pdf' || resource.type === 'image') {
-            try {
-                fileBlobRecord = await getFileBlob(resourceId);
-            } catch {
-                // File blob retrieval is an enhancement; proceed if unavailable
-            }
-        }
-
-        activeResource = resource;
-        renderResource(resource, processed, outputsSummary, quiz, fileBlobRecord);
+        await refreshResourceViewer(resourceId);
         openDialog(viewerDialog());
     } catch (error) {
         console.error('StudyLens could not open the resource.', error);
@@ -367,6 +413,46 @@ export async function openResourceViewer(resourceId) {
 }
 
 export function initResourceViewer() {
+    document.querySelector('[data-resource-viewer-extract-pdf]')?.addEventListener('click', async (event) => {
+        if (isExtractingPdf || !activeResource || activeResource.type !== 'pdf') return;
+
+        const btn = event.currentTarget;
+        const wasReprocess = btn.textContent.toLowerCase().includes('reprocess');
+
+        isExtractingPdf = true;
+        btn.disabled = true;
+        btn.textContent = 'Extracting…';
+
+        try {
+            await processAndStore(activeResource);
+            await refreshResourceViewer(activeResource.id);
+            showToast(wasReprocess ? 'PDF reprocessed successfully.' : 'PDF content extracted successfully.');
+        } catch (err) {
+            console.error('StudyLens could not extract PDF content.', err);
+            try {
+                await refreshResourceViewer(activeResource.id);
+            } catch {
+                // Secondary error ignored
+            }
+
+            const isNoText = err?.code === 'NO_SELECTABLE_TEXT' ||
+                (typeof err?.message === 'string' && err.message.toLowerCase().includes('no selectable text'));
+
+            if (isNoText) {
+                showToast('No selectable text was found in this PDF. OCR will be supported in a future milestone.', { variant: 'error' });
+            } else {
+                showToast('Could not extract PDF content: ' + (err.message || 'Please try again.'), { variant: 'error' });
+            }
+        } finally {
+            isExtractingPdf = false;
+            if (activeResource) {
+                const hasExtracted = activeResource.status === 'completed';
+                btn.disabled = false;
+                btn.textContent = hasExtracted ? 'Reprocess PDF' : 'Extract PDF content';
+            }
+        }
+    });
+
     document.querySelector('[data-resource-viewer-generate]')?.addEventListener('click', async (event) => {
         if (isGenerating || !activeResource) return;
 
@@ -390,11 +476,7 @@ export function initResourceViewer() {
 
         try {
             await generateLearningOutputsForResource(activeResource.id);
-            const [processed, summary] = await Promise.all([
-                getProcessedContent(activeResource.id).catch(() => null),
-                getLearningOutputsSummaryForResource(activeResource.id).catch(() => null),
-            ]);
-            renderResource(activeResource, processed, summary);
+            await refreshResourceViewer(activeResource.id);
             showToast(wasRegenerate ? 'Learning outputs regenerated.' : 'Learning outputs generated.');
         } catch (err) {
             console.error('StudyLens could not generate learning outputs.', err);
@@ -430,11 +512,7 @@ export function initResourceViewer() {
 
         try {
             await generateFlashcardsForResource(activeResource.id);
-            const [processed, summary] = await Promise.all([
-                getProcessedContent(activeResource.id).catch(() => null),
-                getLearningOutputsSummaryForResource(activeResource.id).catch(() => null),
-            ]);
-            renderResource(activeResource, processed, summary);
+            await refreshResourceViewer(activeResource.id);
             showToast(wasRegenerate ? 'Flashcards regenerated.' : 'Flashcards generated.');
         } catch (err) {
             console.error('StudyLens could not generate flashcards.', err);
@@ -464,12 +542,7 @@ export function initResourceViewer() {
 
         try {
             await generateQuizForResource(activeResource.id);
-            const [processed, summary, quiz] = await Promise.all([
-                getProcessedContent(activeResource.id).catch(() => null),
-                getLearningOutputsSummaryForResource(activeResource.id).catch(() => null),
-                getQuizForResource(activeResource.id).catch(() => null),
-            ]);
-            renderResource(activeResource, processed, summary, quiz);
+            await refreshResourceViewer(activeResource.id);
             showToast(wasRegenerate ? 'Quiz regenerated.' : 'Quiz generated.');
         } catch (err) {
             console.error('StudyLens could not generate quiz.', err);

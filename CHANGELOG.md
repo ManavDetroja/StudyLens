@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.17.1 — 2026-09-27
+
+- Repaired IndexedDB schema migration by upgrading `StudyLensDB` to version 8 with additive, self-healing store and index reconciliation (`ensureAllRequiredStoresAndIndexes`).
+- Resolved browser console `NotFoundError` exceptions where `notes`, `quizAttempts`, and `fileBlobs` stores were missing in existing browser databases.
+- Preserved all existing user records across `resources`, `processedContent`, `learningOutputs`, `quizzes`, and other stores without resetting or clearing database data.
+- Added post-open schema integrity verification in `js/storage/indexedDB.js` to immediately detect and report missing required stores (`DATABASE_SCHEMA_INCOMPLETE`).
+- Added comprehensive schema migration unit tests in `tests/databaseSchema.test.mjs` (9 tests) and upgraded `tests/storage.browser-suite.js` to verify migration from older schemas.
+
+## 0.17.0 — 2026-09-27
+
+- Implemented Browser-based PDF Text Extraction for local PDF resources in StudyLens without backend services, external build tooling, cloud APIs, external LLMs, or OCR for scanned documents.
+- Vendored PDF.js (v3.11.174 legacy build) locally in `js/vendor/pdf/` (`pdf.min.js`, `pdf.js`, `pdf.worker.min.js`, `pdf.worker.js`) to ensure pure client-side self-containment without remote CDNs.
+- Added universal PDF.js loader in `js/processing/pdfParserLoader.js` supporting browser environments (`window.pdfjsLib` with configured worker source) and Node.js test environments.
+- Implemented pure client-side PDF text extraction engine in `js/processing/pdfExtractor.js` (`extractPdfText`):
+  - Accepts `Blob`, `File`, `ArrayBuffer`, or `Uint8Array`.
+  - Extracts text page-by-page preserving 1-based page numbering and boundaries.
+  - Enforces strict validation: throws `PDF_DATA_MISSING`, `INVALID_PDF_DATA`, `EMPTY_PDF`, `INVALID_PDF`, and `NO_SELECTABLE_TEXT`.
+- Created PDF Source Adapter (`js/processing/pdfAdapter.js`) conforming to the project's plain-object `SourceAdapter` contract:
+  - `canHandle(resource)` identifies `resource.type === 'pdf'`.
+  - `extract(resource, options)` retrieves stored PDF binary blob via `fileBlobStore` and extracts pages.
+  - `normalize(extractedContent, resource)` applies `normalizeTextContent`, tracks `pageOffsets` (character start and end offsets per page), and builds the normalized content model.
+- Integrated PDF Adapter with the Content Processing Pipeline (`js/processing/contentProcessingPipeline.js`):
+  - Registered `pdfAdapter` alongside `textAdapter`.
+  - Added `enrichSegmentsWithPages(segments, pageOffsets)` attaching 1-based `pageNumber` and `pages` array to each chunk for page-level source traceability.
+- Updated processing integration (`js/features/processingIntegration.js`):
+  - Coordinates status transitions (`pending` → `processing` → `completed` or `failed`).
+  - Sets extracted normalized text on the resource record (`content: normalizedContent.text`) and persists segmented chunks into `processedContent` in IndexedDB.
+  - Records failure reasons in `metadata.processingError` and `metadata.processingErrorCode`.
+- Enhanced Resource Viewer (`#resource-viewer-dialog`, `js/features/resourceViewer.js`, `index.html`, `css/components.css`):
+  - Added "Extract PDF content" button toggling to "Extracting…" during extraction and "Reprocess PDF" on completion.
+  - Formats multi-page PDF content with page headers (`--- Page X ---`) when extracted pages exist.
+  - Displays color-coded status badges for `pending`, `processing`, `completed`, and `failed`.
+  - Provides friendly placeholder when extraction is pending.
+  - Displays toast notification on successful extraction and explains missing selectable text ("No selectable text was found in this PDF. OCR will be supported in a future milestone.") without crashing.
+- Downstream integration verified: Extracted PDF content seamlessly enables Day 10 Learning Outputs (Extractive Summary, Key Concepts, Definitions, Questions), Day 12 Flashcards (with interactive flip viewer), and Day 13–14 Quizzes (with MCQ player, scoring, and persistent attempt history) without duplicate accumulation on reprocessing.
+- Added 22 comprehensive unit and integration tests in `tests/pdfProcessing.test.mjs` (288 tests total across the suite, 287 passing in Node, 1 skipped for browser-only IndexedDB).
+- Updated TypeScript declarations in `ts/types.ts` (`ExtractedPdfPage`, `ExtractedPdfDocument`, `PdfPageOffset`, and `ContentSegment` page properties).
+- Verified end-to-end browser workflows in Headless Chrome via CDP across 11 verification steps.
+
 ## 0.16.0 — 2026-09-27
 
 - Implemented the Local File Import Foundation for PDF and image files in StudyLens without backend services, external frameworks, cloud storage, or external APIs.

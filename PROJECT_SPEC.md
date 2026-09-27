@@ -4,7 +4,7 @@
 
 ## Inputs
 - Video URLs (future)
-- PDF files (local file import foundation available; content extraction in future phase)
+- PDF files (local file import and browser-based text extraction available; OCR for scanned PDFs in future phase)
 - Image files (local file import foundation available; OCR in future phase)
 - Plain text material (available through manual text entry)
 
@@ -123,4 +123,30 @@ Day 16 establishes client-side ingestion and persistent storage of local PDF and
   - Dashboard quick actions for PDF and Image wired directly to file import dialog.
   - Resource Viewer (`#resource-viewer-dialog`) displays file details card (name, format, size, MIME type, pending status), hides text edit button, disables output generation, and provides image thumbnail previews for image resources with safe object URL lifecycle management.
   - Cascading delete: deleting a file resource purges its entry from `fileBlobs`.
+
+## Browser-based PDF text extraction (Day 17)
+
+Day 17 implements client-side, offline selectable-text extraction for local PDF resources:
+- **Scope & Boundary**: Selectable text extraction only. Scanned or image-only documents requiring OCR are explicitly deferred. No remote CDNs, backend parsing services, or external AI/LLM APIs.
+- **Vendored PDF Engine**:
+  - PDF.js (v3.11.174 legacy build) vendored directly into `js/vendor/pdf/`.
+  - Universal loader (`js/processing/pdfParserLoader.js`) loads the library and configures worker source in browser and Node environments.
+- **Extraction & Normalization**:
+  - `extractPdfText`: reads binary PDF data from `fileBlobs`, traverses document page-by-page, extracts text items, and preserves 1-based page numbering and boundaries.
+  - Validation guards: throws `PDF_DATA_MISSING`, `INVALID_PDF_DATA`, `EMPTY_PDF`, `INVALID_PDF`, and `NO_SELECTABLE_TEXT`.
+  - PDF Source Adapter (`js/processing/pdfAdapter.js`): conforms to `SourceAdapter` contract, connects to `fileBlobStore`, applies deterministic text normalization (`normalizeTextContent`), and records character offset ranges for each page (`pageOffsets`).
+- **Content Pipeline & Traceability**:
+  - Integrates with `contentProcessingPipeline.js`.
+  - Enriches segmented chunks with `pageNumber` (first overlapping page) and `pages` (array of all overlapping pages) via `enrichSegmentsWithPages` for page-level source traceability.
+- **Resource Lifecycle**:
+  - Resource status transitions: `pending` → `processing` → `completed` (or `failed` with error metadata).
+  - Extracted normalized text is stored on the resource record (`content: normalizedContent.text`) and segmented chunks are persisted into the `processedContent` store.
+- **User Interface**:
+  - Resource Viewer provides "Extract PDF content" button with in-place loading feedback ("Extracting…") and toggling to "Reprocess PDF" when completed.
+  - Page-based rendering formats text with page headers (`--- Page X ---`).
+  - Color-coded status badges for `pending`, `processing`, `completed`, and `failed`.
+  - Graceful handling for non-selectable PDFs with clear user messaging ("No selectable text was found in this PDF. OCR will be supported in a future milestone.").
+- **Downstream Integration**:
+  - Extracted PDF content seamlessly powers Day 10 Learning Outputs (Extractive Summary, Key Concepts, Definitions, Questions), Day 12 Flashcards, and Day 13–14 Quizzes.
+  - Reprocessing is idempotent: cleans previous chunks without duplicate accumulation.
 

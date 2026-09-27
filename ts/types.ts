@@ -30,6 +30,34 @@ export interface ContentSegment {
     startOffset: number;
     endOffset: number;
     text: string;
+    /** Page number where this segment originates (1-based), if from a page-backed source like PDF. */
+    pageNumber?: number;
+    /** Array of all page numbers overlapped by this segment. */
+    pages?: number[];
+}
+
+/** Extracted PDF page record with 1-based page numbering (Day 17). */
+export interface ExtractedPdfPage {
+    pageNumber: number;
+    text: string;
+}
+
+/** Result of extracting selectable text from a PDF document. */
+export interface ExtractedPdfDocument {
+    numPages: number;
+    pages: ExtractedPdfPage[];
+    metadata: {
+        pageCount: number;
+        fingerprint?: string | null;
+        [key: string]: unknown;
+    };
+}
+
+/** Page character offset boundary mapping. */
+export interface PdfPageOffset {
+    pageNumber: number;
+    startOffset: number;
+    endOffset: number;
 }
 
 /** Extensible, non-sensitive adapter metadata for a normalized content snapshot. */

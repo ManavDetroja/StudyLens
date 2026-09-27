@@ -104,7 +104,7 @@ export async function runStorageBrowserSuite() {
             assert(noteStore.indexNames.contains(index), 'Missing notes index: ' + index + '.');
         });
         assert(database.objectStoreNames.contains('fileBlobs'), 'The fileBlobs store was not created.');
-        results.push('Database schema and indexes created (v7 with fileBlobs)');
+        results.push('Database schema and indexes created (v8 with self-healing migration)');
 
         const created = await repository.createResource(createTextResourceInput({
             title: ' Storage test resource ',
@@ -317,6 +317,80 @@ export async function runStorageBrowserSuite() {
         assert(await repository.getResource(created.id) === null, 'Deleted resource was still available.');
         assert((await repository.clearResources()) === 0, 'Clear did not report the expected empty count.');
         results.push('Delete and clear');
+
+        // Migration repair verification: simulate an existing v4 database with data, then upgrade to v8
+        const migrationDbName = 'StudyLensDB-MigrationTest-' + globalThis.crypto.randomUUID();
+        try {
+            // 1. Create a database at version 4 (only resources, processedContent, learningOutputs, quizzes)
+            await new Promise((resolve, reject) => {
+                const req = globalThis.indexedDB.open(migrationDbName, 4);
+                req.onupgradeneeded = () => {
+                    const db = req.result;
+                    const resStore = db.createObjectStore('resources', { keyPath: 'id' });
+                    resStore.createIndex('type', 'type', { unique: false });
+                    db.createObjectStore('processedContent', { keyPath: 'id' });
+                    db.createObjectStore('learningOutputs', { keyPath: 'id' });
+                    db.createObjectStore('quizzes', { keyPath: 'id' });
+                };
+                req.onsuccess = () => {
+                    const db = req.result;
+                    const tx = db.transaction('resources', 'readwrite');
+                    tx.objectStore('resources').add({
+                        id: 'preserved-resource-1',
+                        title: 'Preserved Resource',
+                        type: 'text',
+                        content: 'This must survive migration',
+                        status: 'completed',
+                        tags: ['legacy'],
+                        createdAt: '2026-09-20T00:00:00.000Z',
+                        updatedAt: '2026-09-20T00:00:00.000Z',
+                    });
+                    tx.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                    tx.onerror = () => reject(tx.error);
+                };
+                req.onerror = () => reject(req.error);
+            });
+
+            // 2. Open via StudyLens DatabaseConnection (which uses DATABASE_VERSION = 8)
+            const migConn = new DatabaseConnection({ databaseName: migrationDbName });
+            const upgradedDb = await migConn.open();
+
+            // Verify all 7 required stores now exist
+            ['resources', 'processedContent', 'learningOutputs', 'quizzes', 'quizAttempts', 'notes', 'fileBlobs'].forEach((storeName) => {
+                assert(upgradedDb.objectStoreNames.contains(storeName), 'Missing store after migration: ' + storeName);
+            });
+
+            // Verify preserved data survives untouched
+            const migResRepo = new ResourceRepository({ database: migConn });
+            const preserved = await migResRepo.getResource('preserved-resource-1');
+            assert(preserved !== null, 'Preserved record was lost during migration.');
+            assert(preserved.title === 'Preserved Resource', 'Preserved record data was mutated.');
+
+            // Verify newly added stores are fully functional
+            const migNoteRepo = new NoteRepository({ database: migConn });
+            const migNote = await migNoteRepo.createNote({
+                title: 'Post-migration note',
+                content: 'Testing notes in upgraded database',
+                resourceId: 'preserved-resource-1',
+                tags: ['migration'],
+            });
+            assert(migNote.id !== null, 'Note creation failed in upgraded database.');
+            assert((await migNoteRepo.getNote(migNote.id)).title === 'Post-migration note', 'Note retrieval failed.');
+
+            const migBlobRepo = new FileBlobRepository({ database: migConn });
+            const migBlob = new Blob(['migrated-pdf-bytes'], { type: 'application/pdf' });
+            await migBlobRepo.saveFileBlob('preserved-resource-1', migBlob);
+            const loadedBlob = await migBlobRepo.getFileBlob('preserved-resource-1');
+            assert(loadedBlob !== null, 'Blob storage failed in upgraded database.');
+
+            migConn.close();
+            results.push('Migration from older database (v4 to v8) preserves data and creates missing stores');
+        } finally {
+            await deleteTestDatabase(globalThis.indexedDB, migrationDbName);
+        }
     } finally {
         connection.close();
         await deleteTestDatabase(globalThis.indexedDB, databaseName);

@@ -1,4 +1,4 @@
-import { DATABASE_NAME, DATABASE_VERSION, upgradeDatabaseSchema } from './databaseSchema.js';
+import { ALL_REQUIRED_STORES, DATABASE_NAME, DATABASE_VERSION, upgradeDatabaseSchema } from './databaseSchema.js';
 import { StorageError, asStorageError } from './errors.js';
 
 export class DatabaseConnection {
@@ -93,6 +93,23 @@ export class DatabaseConnection {
             request.addEventListener('success', () => {
                 const database = request.result;
                 database.addEventListener('versionchange', () => this.close());
+
+                const missingStores = ALL_REQUIRED_STORES.filter(
+                    (storeName) => !database.objectStoreNames.contains(storeName)
+                );
+
+                if (missingStores.length > 0) {
+                    database.close();
+                    rejectOnce(new StorageError(
+                        'StudyLens database is missing required stores: ' + missingStores.join(', ') + '.',
+                        {
+                            code: 'DATABASE_SCHEMA_INCOMPLETE',
+                            details: { missingStores },
+                        }
+                    ));
+                    return;
+                }
+
                 resolveOnce(database);
             });
         });

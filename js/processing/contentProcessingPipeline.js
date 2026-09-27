@@ -2,6 +2,7 @@ import { validateResource } from '../storage/resourceValidation.js';
 import { chunkNormalizedContent } from './contentChunker.js';
 import { ContentProcessingError, asContentProcessingError } from './errors.js';
 import { textAdapter } from './textAdapter.js';
+import { pdfAdapter } from './pdfAdapter.js';
 
 function isPlainObject(value) {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -45,6 +46,25 @@ async function runProcessingStep(step, message, code) {
     }
 }
 
+export function enrichSegmentsWithPages(segments, pageOffsets) {
+    if (!Array.isArray(pageOffsets) || pageOffsets.length === 0) {
+        return segments;
+    }
+
+    return segments.map((seg) => {
+        const matchingPages = pageOffsets.filter((p) =>
+            seg.startOffset < p.endOffset && seg.endOffset > p.startOffset
+        ).map((p) => p.pageNumber);
+
+        const pages = matchingPages.length > 0 ? matchingPages : [pageOffsets[0].pageNumber];
+        return {
+            ...seg,
+            pageNumber: pages[0],
+            pages,
+        };
+    });
+}
+
 /**
  * Orchestrates validated, local-only extraction, normalization, and chunking.
  * It intentionally accepts a Resource object and returns data without changing
@@ -52,7 +72,7 @@ async function runProcessingStep(step, message, code) {
  */
 export class ContentProcessingPipeline {
     constructor({
-        adapters = [textAdapter],
+        adapters = [textAdapter, pdfAdapter],
         chunker = chunkNormalizedContent,
     } = {}) {
         if (!Array.isArray(adapters)) {
@@ -75,7 +95,7 @@ export class ContentProcessingPipeline {
         return this.adapters.find((adapter) => adapter.canHandle(resource)) ?? null;
     }
 
-    async processResource(resource, { chunking } = {}) {
+    async processResource(resource, { chunking, ...options } = {}) {
         try {
             validateResource(resource);
         } catch (error) {
@@ -95,22 +115,24 @@ export class ContentProcessingPipeline {
         }
 
         const extractedContent = await runProcessingStep(
-            () => adapter.extract(resource),
+            () => adapter.extract(resource, options),
             'StudyLens could not extract content from this resource.',
             'EXTRACTION_FAILED',
         );
         const normalizedContent = await runProcessingStep(
-            () => adapter.normalize(extractedContent, resource),
+            () => adapter.normalize(extractedContent, resource, options),
             'StudyLens could not normalize this resource.',
             'NORMALIZATION_FAILED',
         );
         assertNormalizedContent(normalizedContent, resource);
 
-        const segments = await runProcessingStep(
+        const rawSegments = await runProcessingStep(
             () => this.chunker(normalizedContent.text, chunking),
             'StudyLens could not split this resource into segments.',
             'CHUNKING_FAILED',
         );
+
+        const segments = enrichSegmentsWithPages(rawSegments, normalizedContent.metadata?.pageOffsets);
 
         return {
             ...normalizedContent,

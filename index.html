@@ -243,7 +243,7 @@
                 <div class="resource-outputs-container" data-resource-viewer-outputs-container></div>
             </section>
         </div>
-        <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-add-note>Add note</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
+        <div class="modal-footer dialog-actions"><button class="button button-primary" type="button" data-resource-viewer-extract-pdf hidden>Extract PDF content</button><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-add-note>Add note</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
     </dialog>
     <dialog class="modal confirm-dialog" id="delete-resource-dialog" aria-labelledby="delete-resource-title" aria-describedby="delete-resource-description" data-dialog>
         <div class="modal-header"><div><p class="eyebrow">Delete resource</p><h2 id="delete-resource-title">Delete this resource?</h2></div><button class="icon-button" type="button" aria-label="Close delete confirmation" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
@@ -414,6 +414,7 @@
         </div>
     </dialog>
     <div class="toast" role="status" aria-live="polite" aria-atomic="true" hidden data-toast></div>
+    <script src="js/vendor/pdf/pdf.min.js"></script>
     <script src="js/app.js" type="module"></script>
 </body>
 </html>

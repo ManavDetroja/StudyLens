@@ -19,6 +19,7 @@ function createMetadata(resource) {
     date.textContent = formatResourceDate(resource.createdAt);
     const status = document.createElement('span');
     status.className = 'resource-status';
+    status.dataset.status = resource.status;
     status.textContent = resource.status;
     metadata.append(date, status);
     return metadata;

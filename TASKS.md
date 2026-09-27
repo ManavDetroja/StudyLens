@@ -107,12 +107,24 @@
 - [x] Integrate cascading file blob deletion in `js/features/resourceViewer.js` when deleting a parent resource.
 - [x] Update native IndexedDB browser test suite (`tests/storage.browser-suite.js`) with schema v7 assertions (19 passed checks).
 - [x] Add 18 comprehensive unit tests for file import config, validation, and atomic service rollback in `tests/fileImport.test.mjs`.
+- [x] Vendor PDF.js (v3.11.174 legacy build) locally in `js/vendor/pdf/` (`pdf.min.js`, `pdf.js`, `pdf.worker.min.js`, `pdf.worker.js`) for self-contained, offline-capable PDF processing.
+- [x] Implement universal PDF.js loader (`js/processing/pdfParserLoader.js`) configuring worker source in browser and Node environments.
+- [x] Build pure client-side PDF text extractor (`js/processing/pdfExtractor.js`) parsing text page-by-page, preserving page numbers and boundaries, with comprehensive validation (`PDF_DATA_MISSING`, `INVALID_PDF_DATA`, `EMPTY_PDF`, `INVALID_PDF`, `NO_SELECTABLE_TEXT`).
+- [x] Implement PDF Source Adapter (`js/processing/pdfAdapter.js`) conforming to `SourceAdapter` contract, retrieving binary blobs from `fileBlobStore`, normalizing text, and generating page character offset boundaries (`pageOffsets`).
+- [x] Integrate PDF adapter into Content Processing Pipeline (`js/processing/contentProcessingPipeline.js`) with `enrichSegmentsWithPages` for segment-level page traceability (`pageNumber`, `pages`).
+- [x] Update processing integration (`js/features/processingIntegration.js`) managing status lifecycle (`pending` → `processing` → `completed` / `failed`), storing normalized text on resource record, persisting chunks to `processedContent`, and saving error metadata on failure.
+- [x] Update Resource Viewer (`js/features/resourceViewer.js`, `index.html`, `css/components.css`) with "Extract PDF content" button, loading/reprocess toggles, formatted multi-page text rendering (`--- Page X ---`), color-coded status badges, and friendly missing text error handling.
+- [x] Verify downstream integration: extracted PDF content enables Day 10 Learning Outputs (Summary, Concepts, Definitions, Questions), Day 12 Flashcards, and Day 13–14 Quizzes without duplicate accumulation on reprocessing.
+- [x] Add 22 comprehensive unit and integration tests in `tests/pdfProcessing.test.mjs`.
+- [x] Update TypeScript declarations in `ts/types.ts` for PDF documents, pages, page offsets, and content segment page properties.
+- [x] Verify end-to-end functionality via automated headless Chrome CDP browser audit across 11 verification steps.
+- [x] Repair IndexedDB schema migration to version 8 with additive, self-healing store/index reconciliation (ensureAllRequiredStoresAndIndexes) and post-open integrity check, resolving missing notes, quizAttempts, and fileBlobs stores in existing browser databases while preserving user data.
 
 ## Next
 
-- [ ] Implement multimodal content extraction (PDF text parsing & image OCR) or spaced repetition review (Day 17).
+- [ ] Implement OCR for scanned PDFs and image resources or spaced repetition review (Day 18).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; PDF text extraction/parsing; image OCR; video transcripts; authentication; or backend services have been implemented. Only manually entered text has an active adapter, end-to-end processing pipeline, deterministic learning output generator, structured reader UI, interactive flashcard review engine, deterministic quiz system, persistent quiz attempt results & analytics, and persistent notes workspace today. Local PDF and image files can be ingested and stored locally (Day 16), but their content is not yet extracted or parsed.
+No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; image OCR; video transcripts; authentication; or backend services have been implemented. Only manually entered text and local selectable-text PDF documents have active adapters, end-to-end processing pipelines, deterministic learning output generation, structured reader UI, interactive flashcard review, deterministic quiz system, persistent quiz attempt results & analytics, and persistent notes workspace today. Scanned/image-only PDFs and image resources (Day 16) are ingested and stored locally, but optical character recognition (OCR) is deferred to future milestones.
 

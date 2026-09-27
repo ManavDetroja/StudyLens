@@ -86,6 +86,9 @@
 .resource-card-title:hover { color: var(--color-primary); text-decoration: underline; }
 .resource-card-meta { display: flex; grid-column: 1 / -1; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; color: var(--color-text-muted); font-size: 0.8rem; }
 .resource-status { display: inline-flex; align-items: center; min-height: 1.4rem; padding: 0.1rem 0.45rem; border-radius: 99rem; background: var(--color-surface-subtle); color: var(--color-text-muted); font-size: 0.7rem; font-weight: 750; text-transform: capitalize; }
+.resource-status[data-status="completed"] { background: var(--color-blue-soft); color: var(--color-blue); }
+.resource-status[data-status="processing"] { background: var(--color-amber-soft); color: var(--color-amber); }
+.resource-status[data-status="failed"] { background: var(--color-rose-soft); color: var(--color-rose); }
 .resource-tags { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
 .resource-tag { max-width: 16rem; padding: 0.16rem 0.48rem; border-radius: 99rem; background: var(--color-surface-subtle); color: var(--color-text-muted); font-size: 0.72rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .resource-source { max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-muted); font-size: 0.8rem; }

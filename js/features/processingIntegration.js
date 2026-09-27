@@ -15,8 +15,10 @@ import { ContentProcessingError, asContentProcessingError } from '../processing/
 import { processedContentRepository } from '../storage/processedContentStore.js';
 import { resourceRepository } from '../storage/resourceStore.js';
 
+import { notifyResourcesChanged } from '../core/resourceEvents.js';
+
 /**
- * Process a resource through the Day 7 pipeline and persist the result.
+ * Process a resource through the processing pipeline and persist the result.
  * Invalidates and removes any stale processed content for the same resourceId
  * before storing the new processed result.
  *
@@ -30,6 +32,7 @@ import { resourceRepository } from '../storage/resourceStore.js';
 export async function processAndStore(resource, {
     processedRepo = processedContentRepository,
     resRepo = resourceRepository,
+    ...options
 } = {}) {
     if (!resource || typeof resource.id !== 'string' || resource.id.trim() === '') {
         throw new ContentProcessingError('A valid resource with an id is required for processing.', {
@@ -44,14 +47,33 @@ export async function processAndStore(resource, {
         // Non-fatal if no prior processed content existed
     }
 
+    // Transition status to 'processing'
+    if (resRepo) {
+        try {
+            await resRepo.updateResource(resource.id, { status: 'processing' });
+            notifyResourcesChanged({ action: 'updated', resourceId: resource.id });
+        } catch {
+            // Non-fatal status update
+        }
+    }
+
     try {
-        const normalizedContent = await processResource(resource);
+        const normalizedContent = await processResource(resource, options);
         const saved = await processedRepo.saveProcessedContent(normalizedContent);
 
-        // If resource had a pending status, update to completed
-        if (resource.status === 'pending' && resRepo) {
+        // Update resource with completed status and sync extracted text content
+        if (resRepo) {
             try {
-                await resRepo.updateResource(resource.id, { status: 'completed' });
+                const meta = { ...(resource.metadata || {}) };
+                delete meta.processingError;
+                delete meta.processingErrorCode;
+
+                await resRepo.updateResource(resource.id, {
+                    status: 'completed',
+                    content: normalizedContent.text,
+                    metadata: meta,
+                });
+                notifyResourcesChanged({ action: 'updated', resourceId: resource.id });
             } catch {
                 // Non-fatal status update
             }
@@ -70,6 +92,7 @@ export async function processAndStore(resource, {
                         processingErrorCode: error.code || 'PROCESSING_FAILED',
                     },
                 });
+                notifyResourcesChanged({ action: 'updated', resourceId: resource.id });
             } catch {
                 // Secondary error ignored
             }
