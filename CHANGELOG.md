@@ -1,6 +1,41 @@
 # Changelog
 
-## 0.17.1 — 2026-09-27
+## 0.19.0 — 2026-09-27
+
+- Implemented Deterministic Source-Grounded Learning Output Quality Engine for StudyLens without external AI/LLMs (no Gemini, OpenAI, Claude, local models, or remote APIs), vector databases, embeddings, external NLP libraries, or backend services. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM.
+- Eliminated generic placeholder learning outputs (such as `"Key concept identified in this resource."`, `"Review concept: ..."`, and `"Review the source material for this question."`), ensuring all learning artifacts contain authentic, source-derived knowledge.
+- Created pure client-side Evidence Retrieval & Relevance layer (`js/processing/evidenceRetrieval.js`):
+  - `FORBIDDEN_PLACEHOLDER_PATTERNS` and `isGenericPlaceholder(text)` to reliably identify and reject generic, hollow filler text across all output types.
+  - `validateLearningAnswer(text)` enforcing substantive answer length, authentic language characters, and non-generic content.
+  - `isExplanatorySentence(sentenceText, term)` to verify candidate sentences genuinely explain the term rather than mentioning it in passing as a prepositional object.
+  - `cleanExplanationText(rawText, term)` formatting source evidence into clear, concise study explanations (normalizing leading patterns, capitalizing verbs, ensuring correct sentence endings).
+  - `findRelevantSentences(queryOrTerm, sentences, chunks)` deterministic scoring engine using exact phrase matching (+15), explanatory verb proximity (+25), sentence-initial position (+10), non-stopword token overlap (+4 per keyword), length suitability bounds (35–220 chars), and fragment/meta-statement penalties.
+  - `extractEvidenceForTerm(term, sentences, chunks)` selecting top-ranked supporting sentences for key concepts and preserving exact source chunk IDs.
+  - `extractAnswerForQuestion(question, term, sentences, chunks)` deriving direct answers grounded in source sentences.
+- Enhanced Content Analysis Layer (`js/processing/contentAnalysis.js`):
+  - Expanded `extractDefinitions` from 5 to 9 deterministic syntactic patterns, adding:
+    - Pattern 6: `"X allows / enables / provides Y"`
+    - Pattern 7: `"X occurs when / happens when Y"`
+    - Pattern 8: `"X represents / describes Y"`
+    - Pattern 9: `"X consists of / is composed of Y"`
+  - Updated `extractKeyConcepts` to retrieve source-grounded explanations (`explanation`) and specific supporting chunk IDs for each candidate concept.
+  - Updated `generateQuestions` to attach extracted source answers (`answer`) to every question.
+  - Updated `generateExtractiveSummary` to strictly filter out generic placeholder statements.
+  - Added support for injected deterministic clock in `analyzeContent`.
+- Updated Learning Output Generator (`js/processing/learningOutputGenerator.js`):
+  - Populates `metadata.explanation` on concept records and `metadata.answer` on question records while strictly maintaining backward compatibility with Day 9 validation schema.
+- Upgraded Flashcard Generator (`js/processing/flashcardGenerator.js`):
+  - Flashcard backs now prioritize grounded source explanations for concepts and grounded answers for questions.
+  - Added `strictQuality` mode to reject cards without substantive source grounding (preventing hollow cards like `"What is Inheritance?"` -> `"Key concept identified in this resource."`).
+- Upgraded Quiz Generator (`js/processing/quizGenerator.js`):
+  - MCQs from questions utilize grounded answers from `metadata.answer`.
+  - Filters out generic placeholders from correct answers and distractor options, ensuring every quiz option has educational substance.
+- Source chunk traceability strictly preserved across all learning outputs, flashcards, and quizzes without inventing chunk IDs or pointing to arbitrary default chunks.
+- Universally compatible with all content source types: Manual Text Resources, PDF-extracted text, and OCR-extracted image text.
+- Added 18 comprehensive unit tests in `tests/evidenceRetrieval.test.mjs` (315 total tests, 314 passing in Node, 1 browser-only skipped; 100% pass rate).
+- Verified complete browser end-to-end quality pipeline on Java OOP study material via automated Headless Chrome CDP verification across 9 verification steps (`scratch/verify_day19_browser.mjs`).
+- Updated TypeScript definitions in `ts/types.ts` (`ConceptMetadata`, `QuestionMetadata`, `EvidenceCandidate`).
+
 
 - Repaired IndexedDB schema migration by upgrading `StudyLensDB` to version 8 with additive, self-healing store and index reconciliation (`ensureAllRequiredStoresAndIndexes`).
 - Resolved browser console `NotFoundError` exceptions where `notes`, `quizAttempts`, and `fileBlobs` stores were missing in existing browser databases.

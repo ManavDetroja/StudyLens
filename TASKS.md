@@ -119,12 +119,22 @@
 - [x] Update TypeScript declarations in `ts/types.ts` for PDF documents, pages, page offsets, and content segment page properties.
 - [x] Verify end-to-end functionality via automated headless Chrome CDP browser audit across 11 verification steps.
 - [x] Repair IndexedDB schema migration to version 8 with additive, self-healing store/index reconciliation (ensureAllRequiredStoresAndIndexes) and post-open integrity check, resolving missing notes, quizAttempts, and fileBlobs stores in existing browser databases while preserving user data.
+- [x] Implement pure client-side Evidence Retrieval & Relevance layer (`js/processing/evidenceRetrieval.js`) with forbidden placeholder rejection, substantive answer validation, explanatory sentence detection, and exact source chunk traceability. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM.
+- [x] Expand definition extraction in `js/processing/contentAnalysis.js` with patterns 6–9 (`allows/enables`, `occurs when/happens when`, `represents/describes`, `consists of/is composed of`) and filter out generic placeholders.
+- [x] Ground Key Concepts with source-derived explanations (`explanation`) and specific supporting chunk IDs in `js/processing/contentAnalysis.js` and `js/processing/learningOutputGenerator.js`.
+- [x] Ground Study Questions with extracted source-supported answers (`answer`) in `js/processing/contentAnalysis.js` and `js/processing/learningOutputGenerator.js`.
+- [x] Filter out generic placeholder statements from extractive summaries in `js/processing/contentAnalysis.js`.
+- [x] Upgrade Flashcard generator (`js/processing/flashcardGenerator.js`) to produce meaningful, source-grounded answers on card backs and eliminate generic placeholders (`Key concept identified in this resource.`, `Review concept: ...`).
+- [x] Upgrade Quiz generator (`js/processing/quizGenerator.js`) to ground correct answers and strictly reject placeholder options or distractors.
+- [x] Add 18 comprehensive unit tests in `tests/evidenceRetrieval.test.mjs` covering placeholder rejection, evidence retrieval, question answering, source chunk preservation, deterministic repeated generation, and explicit regression testing for the original problem.
+- [x] Verify complete browser quality pipeline on Java OOP concepts via automated Headless Chrome CDP audit across 9 verification steps (`scratch/verify_day19_browser.mjs`).
+- [x] Update TypeScript declarations in `ts/types.ts` for concept metadata, question metadata, and evidence candidates.
 
 ## Next
 
-- [ ] Implement OCR for scanned PDFs and image resources or spaced repetition review (Day 18).
+- [ ] Implement YouTube / video transcript adapters or spaced repetition review (Day 20+).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs; external NLP libraries; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; image OCR; video transcripts; authentication; or backend services have been implemented. Only manually entered text and local selectable-text PDF documents have active adapters, end-to-end processing pipelines, deterministic learning output generation, structured reader UI, interactive flashcard review, deterministic quiz system, persistent quiz attempt results & analytics, and persistent notes workspace today. Scanned/image-only PDFs and image resources (Day 16) are ingested and stored locally, but optical character recognition (OCR) is deferred to future milestones.
+No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; video transcripts; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, and local image resources with deterministic content processing pipelines, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM.
 

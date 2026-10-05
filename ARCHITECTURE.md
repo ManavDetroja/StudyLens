@@ -504,6 +504,64 @@ Downstream Study Engines:
   - Handles `NO_SELECTABLE_TEXT` gracefully by presenting a user-friendly toast notice ("No selectable text was found in this PDF. OCR will be supported in a future milestone.") without crashing.
 - **Downstream Feature Parity**: Extracted PDF content enables all existing study aid engines (Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes). Reprocessing re-runs the pipeline idempotently, cleaning up old chunks and updating study outputs without duplicate accumulation.
 
+## Deterministic Source-Grounded Learning Output Quality Engine (Day 19)
+
+Day 19 improves deterministic source-grounded output quality across all StudyLens study aids (Extractive Summary, Key Concepts, Definitions, Questions, Flashcards, and Quizzes). It does not introduce an LLM.
+
+### Architecture & Data Flow
+```
+SOURCE CONTENT (Text / PDF / OCR)
+  ↓
+ANALYZE (`js/processing/contentAnalysis.js`)
+  ↓
+EVIDENCE RETRIEVAL & RELEVANCE (`js/processing/evidenceRetrieval.js`)
+  - Tokenization & non-stopword filtering
+  - Explanatory verb pattern detection
+  - Sentence length & position scoring
+  - Source chunk mapping (`sourceChunkIds`)
+  ↓
+GROUNDED ANSWER FORMULATION
+  - Concept explanation extraction
+  - Question answer derivation
+  - Pattern 1-9 definition extraction
+  ↓
+OUTPUT QUALITY VALIDATION
+  - Placeholder rejection (`isGenericPlaceholder`)
+  - Substantive content verification (`validateLearningAnswer`)
+  - Exclusion of generic/passing mentions
+  ↓
+GROUNDED LEARNING OUTPUTS (`js/processing/learningOutputGenerator.js`)
+  ├── Summary (Extractive, non-placeholder sentences)
+  ├── Concepts (Term + Grounded Explanation + `sourceChunkIds`)
+  ├── Definitions (Syntactic Patterns 1–9 + `sourceChunkIds`)
+  ├── Questions (Grounded Answer + `sourceChunkIds`)
+  ├── Flashcards (`js/processing/flashcardGenerator.js` with grounded backs)
+  └── Quizzes (`js/processing/quizGenerator.js` with grounded MCQs)
+```
+
+### Module Responsibilities
+- **Evidence Retrieval & Relevance (`js/processing/evidenceRetrieval.js`)**:
+  - `FORBIDDEN_PLACEHOLDER_PATTERNS` and `isGenericPlaceholder(text)`: Identifies and rejects generic boilerplate answers (e.g. `"Key concept identified in this resource"`, `"Review concept: ..."`, `"Answer unavailable"`).
+  - `validateLearningAnswer(text, options)`: Enforces substantive length, authentic alphabetical content, and absence of generic placeholders.
+  - `isExplanatorySentence(sentenceText, term)`: Discerns whether candidate sentences genuinely define or explain the term versus passing mentions where the term appears only as an object of a preposition (e.g. `"created in California"`).
+  - `cleanExplanationText(rawText, term)`: Normalizes leading definitional phrases into concise, readable sentences with capitalized verbs and appropriate punctuation.
+  - `findRelevantSentences(queryOrTerm, sentences, chunks, options)`: Scores sentences deterministically using exact term matching (+15), explanatory verb proximity (+25), term sentence-initial position (+10), keyword token overlap (+4 each), and length suitability (35–220 chars).
+  - `extractEvidenceForTerm(term, sentences, chunks, options)`: Retrieves best supporting evidence for key concepts, assigning exact chunk traceability.
+  - `extractAnswerForQuestion(question, term, sentences, chunks, options)`: Extracts direct source answers for questions.
+- **Enhanced Analysis Layer (`js/processing/contentAnalysis.js`)**:
+  - Expanded `extractDefinitions` to 9 syntactic patterns, supporting `"allows/enables"`, `"occurs when/happens when"`, `"represents/describes"`, and `"consists of/is composed of"`.
+  - Connects `extractKeyConcepts` to `extractEvidenceForTerm`, attaching grounded explanations to candidate concepts.
+  - Connects `generateQuestions` to `extractAnswerForQuestion`, populating grounded answers.
+  - Filters out generic placeholders from extractive summaries.
+- **Downstream Flashcards & Quizzes**:
+  - `flashcardGenerator.js` uses concept explanations and question answers for card backs, eliminating generic recall boilerplate while preserving backward compatibility for legacy fixtures.
+  - `quizGenerator.js` leverages grounded answers and strictly excludes placeholders from options.
+- **Traceability Guarantee**:
+  - Every learning output, flashcard, and quiz question retains authentic `sourceChunkIds` referencing the precise source chunk containing supporting evidence.
+- **Quality Limitations**:
+  - Purely extractive and pattern-based: requires clear grammatical structures or explicit sentence explanations in the source text.
+  - Does not infer implicit information, synthesize across distant paragraphs, or rephrase with external general knowledge.
+
 
 
 

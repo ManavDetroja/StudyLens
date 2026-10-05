@@ -12,6 +12,13 @@
  */
 
 import { isStopword } from './stopwords.js';
+import {
+    isGenericPlaceholder,
+    validateLearningAnswer,
+    cleanExplanationText,
+    extractEvidenceForTerm,
+    extractAnswerForQuestion,
+} from './evidenceRetrieval.js';
 
 /**
  * Split text into sentences with their character offsets.
@@ -165,10 +172,17 @@ export function extractKeyConcepts(text, chunks = [], options = {}) {
         const chunkBonus = chunkCount > 1 ? chunkCount * 4 : 0;
         const score = (data.count * 6) + lengthBonus + phraseBonus + chunkBonus;
 
+        const evidence = extractEvidenceForTerm(data.canonicalTerm, sentences, chunks);
+        const explanation = evidence?.explanation ?? null;
+        const sourceChunkIds = (evidence?.sourceChunkIds && evidence.sourceChunkIds.length > 0)
+            ? evidence.sourceChunkIds
+            : Array.from(data.chunkIds).sort((a, b) => a - b);
+
         scored.push({
             term: data.canonicalTerm,
             score,
-            sourceChunkIds: Array.from(data.chunkIds).sort((a, b) => a - b),
+            explanation,
+            sourceChunkIds,
         });
     }
 
@@ -201,6 +215,14 @@ export function extractDefinitions(sentences = [], chunks = []) {
         /^([A-Z][a-zA-Z0-9\s'-]{1,40})\s+(?:is|are)\s+(?:a|an|the)\s+(.+)$/i,
         // Pattern 5: "X: Y"
         /^([A-Z][a-zA-Z0-9\s'-]{1,40})\s*:\s+(.+)$/,
+        // Pattern 6: "X allows/enables/provides Y"
+        /^([A-Z][a-zA-Z0-9\s'-]{1,40})\s+((?:allows|enables|provides)\s+.+)$/i,
+        // Pattern 7: "X occurs when/happens when Y"
+        /^([A-Z][a-zA-Z0-9\s'-]{1,40})\s+((?:occurs|happens)\s+when\s+.+)$/i,
+        // Pattern 8: "X represents/describes Y"
+        /^([A-Z][a-zA-Z0-9\s'-]{1,40})\s+((?:represents|describes)\s+.+)$/i,
+        // Pattern 9: "X consists of/is composed of Y"
+        /^([A-Z][a-zA-Z0-9\s'-]{1,40})\s+((?:consists\s+of|is\s+composed\s+of)\s+.+)$/i,
     ];
 
     const genericTerms = new Set(['this', 'that', 'these', 'those', 'it', 'there', 'here', 'what', 'which', 'one']);
@@ -221,10 +243,16 @@ export function extractDefinitions(sentences = [], chunks = []) {
             // Strip leading article from term if captured (e.g. "The cell" -> "Cell")
             term = term.replace(/^(?:the|a|an)\s+/i, '');
 
-            // Guard against generic words or definitions that are too short
+            // Guard against generic words, placeholders, or definitions that are too short
             if (genericTerms.has(term.toLowerCase())) continue;
             if (term.length < 2 || term.length > 50) continue;
             if (definition.length < 10) continue;
+            if (isGenericPlaceholder(definition)) continue;
+
+            // Ensure verb-leading definitions start with uppercase
+            if (definition.length > 0 && /^(?:allows|enables|provides|occurs|happens|represents|describes|consists|is\s+composed)/i.test(definition)) {
+                definition = definition.charAt(0).toUpperCase() + definition.slice(1);
+            }
 
             const termKey = term.toLowerCase();
             if (seenTerms.has(termKey)) continue;
@@ -260,14 +288,33 @@ export function generateQuestions(definitions = [], concepts = [], sentences = [
     const questions = [];
     const seenQuestions = new Set();
 
-    function addQuestion(questionText, term, chunkIds) {
+    function addQuestion(questionText, term, chunkIds, answerText = null) {
         const key = questionText.toLowerCase().trim();
         if (seenQuestions.has(key)) return;
         seenQuestions.add(key);
+
+        let finalAnswer = answerText;
+        let finalChunkIds = chunkIds;
+
+        if (!finalAnswer) {
+            const evidence = extractAnswerForQuestion(questionText, term, sentences, chunks);
+            if (evidence) {
+                finalAnswer = evidence.answer;
+                if (Array.isArray(evidence.sourceChunkIds) && evidence.sourceChunkIds.length > 0) {
+                    finalChunkIds = evidence.sourceChunkIds;
+                }
+            }
+        }
+
+        if (finalAnswer && isGenericPlaceholder(finalAnswer)) {
+            finalAnswer = null;
+        }
+
         questions.push({
             question: questionText,
             term,
-            sourceChunkIds: chunkIds,
+            answer: finalAnswer,
+            sourceChunkIds: finalChunkIds,
         });
     }
 
@@ -277,10 +324,10 @@ export function generateQuestions(definitions = [], concepts = [], sentences = [
 
         const isPlural = def.term.toLowerCase().endsWith('s') && !def.term.toLowerCase().endsWith('is');
         const verb = isPlural ? 'are' : 'is';
-        addQuestion(`What ${verb} ${def.term}?`, def.term, def.sourceChunkIds);
+        addQuestion(`What ${verb} ${def.term}?`, def.term, def.sourceChunkIds, def.definition);
 
         if (questions.length < maxQuestions) {
-            addQuestion(`What does ${def.term} refer to?`, def.term, def.sourceChunkIds);
+            addQuestion(`What does ${def.term} refer to?`, def.term, def.sourceChunkIds, def.definition);
         }
     }
 
@@ -311,7 +358,9 @@ export function generateQuestions(definitions = [], concepts = [], sentences = [
             if (term.length < 3 || isStopword(term.toLowerCase())) continue;
 
             const chunkIds = findOverlappingChunkIds(sentence.startOffset, sentence.endOffset, chunks);
-            addQuestion(makeQuestion(term), term, chunkIds);
+            const rawAnswer = match[2]?.trim() || sentence.text.trim();
+            const cleanedAnswer = cleanExplanationText(rawAnswer, term);
+            addQuestion(makeQuestion(term), term, chunkIds, cleanedAnswer);
             break;
         }
     }
@@ -321,7 +370,7 @@ export function generateQuestions(definitions = [], concepts = [], sentences = [
         if (questions.length >= maxQuestions) break;
         const isPlural = concept.term.toLowerCase().endsWith('s') && !concept.term.toLowerCase().endsWith('is');
         const verb = isPlural ? 'are' : 'is';
-        addQuestion(`What ${verb} ${concept.term}?`, concept.term, concept.sourceChunkIds);
+        addQuestion(`What ${verb} ${concept.term}?`, concept.term, concept.sourceChunkIds, concept.explanation || null);
     }
 
     return questions.slice(0, maxQuestions);
@@ -346,8 +395,10 @@ export function generateExtractiveSummary(sentences = [], keyConcepts = [], chun
     const maxSentences = Math.min(options.maxSentences ?? 3, sentences.length);
     const topTerms = new Set(keyConcepts.slice(0, 8).map((c) => c.term.toLowerCase()));
 
-    // Score each sentence
-    const scoredSentences = sentences.map((sentence, index) => {
+    // Score each sentence, skipping placeholders
+    const scoredSentences = sentences
+        .filter((sentence) => !isGenericPlaceholder(sentence.text))
+        .map((sentence, index) => {
         let score = 0;
 
         // Position bonus: first sentence of document is most salient
@@ -413,13 +464,16 @@ export function analyzeContent(processedContent, options = {}) {
     const text = processedContent.normalizedText ?? processedContent.text ?? '';
     const chunks = processedContent.chunks ?? processedContent.segments ?? [];
 
+    const clockVal = typeof options.clock === 'function' ? options.clock() : (options.clock ?? new Date());
+    const analyzedAt = clockVal instanceof Date ? clockVal.toISOString() : (typeof clockVal === 'string' ? clockVal : new Date().toISOString());
+
     if (typeof text !== 'string' || text.trim() === '') {
         return {
             concepts: [],
             definitions: [],
             questions: [],
             summary: { text: '', sourceChunkIds: [], sentenceCount: 0 },
-            metadata: { totalSentences: 0, totalWords: 0, analyzedAt: new Date().toISOString() },
+            metadata: { totalSentences: 0, totalWords: 0, analyzedAt },
         };
     }
 
@@ -439,7 +493,7 @@ export function analyzeContent(processedContent, options = {}) {
         metadata: {
             totalSentences: sentences.length,
             totalWords: words.length,
-            analyzedAt: new Date().toISOString(),
+            analyzedAt,
         },
     };
 }

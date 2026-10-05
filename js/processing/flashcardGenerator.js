@@ -1,22 +1,26 @@
 /**
- * Deterministic Flashcard Generator — Day 12.
+ * Deterministic Flashcard Generator — Day 12 & Day 19.
  *
  * Converts existing learning outputs (definitions, questions, concepts) into
  * flashcard records with structured { front, back } content.
  *
- * Generation rules (no fabrication):
- * - Definitions → front: term, back: definition text
- * - Questions → front: question, back: "Review concept: {relatedTerm}"
- * - Concepts → front: "What is {concept}?", back: "Key concept identified in this resource."
+ * Generation rules (grounded, no fabrication):
+ * - Definitions → front: term, back: source definition text
+ * - Questions → front: question, back: grounded answer from source evidence
+ * - Concepts → front: "What is {concept}?", back: grounded explanation from source evidence
  *
+ * Fallback to referral hints is preserved only for legacy fixtures when strictQuality is disabled.
  * Every generated flashcard retains sourceChunkIds from the source output.
- * The generator interface is kept clean for future AI replacement.
  */
 
 import {
     createLearningOutputRecord,
     generateLearningOutputId,
 } from '../storage/learningOutputValidation.js';
+import {
+    isGenericPlaceholder,
+    validateLearningAnswer,
+} from './evidenceRetrieval.js';
 
 /**
  * Generate flashcard records from existing learning outputs.
@@ -26,6 +30,7 @@ import {
  * @param {object} [options]
  * @param {Function} [options.idGenerator]
  * @param {Function} [options.clock]
+ * @param {boolean} [options.strictQuality=false]
  * @returns {Array<object>} validated flashcard LearningOutput records
  */
 export function generateFlashcards(learningOutputs, resourceId, options = {}) {
@@ -39,6 +44,7 @@ export function generateFlashcards(learningOutputs, resourceId, options = {}) {
 
     const idGenerator = options.idGenerator ?? generateLearningOutputId;
     const clock = options.clock ?? (() => new Date());
+    const strictQuality = options.strictQuality ?? false;
 
     const flashcards = [];
 
@@ -63,47 +69,67 @@ export function generateFlashcards(learningOutputs, resourceId, options = {}) {
         const term = def.metadata?.term;
         const definition = def.metadata?.definition;
 
-        if (term && definition) {
+        if (term && definition && !isGenericPlaceholder(definition)) {
             addFlashcard(
                 term,
                 definition,
                 def.sourceChunkIds,
-                { sourceType: 'definition', sourceOutputId: def.id },
+                { sourceType: 'definition', sourceOutputId: def.id, grounded: true },
             );
         }
     }
 
-    // 2. Questions → Flashcards (question on front, related term hint on back)
+    // 2. Questions → Flashcards (grounded answer on back)
     const questions = learningOutputs.filter((o) => o.type === 'question');
     for (const q of questions) {
         const question = typeof q.content === 'string' ? q.content.trim() : '';
+        const answer = q.metadata?.answer?.trim();
         const relatedTerm = q.metadata?.relatedTerm ?? '';
 
         if (question) {
-            const back = relatedTerm
-                ? `Review concept: ${relatedTerm}`
-                : 'Review the source material for this question.';
-            addFlashcard(
-                question,
-                back,
-                q.sourceChunkIds,
-                { sourceType: 'question', sourceOutputId: q.id },
-            );
+            if (answer && validateLearningAnswer(answer)) {
+                addFlashcard(
+                    question,
+                    answer,
+                    q.sourceChunkIds,
+                    { sourceType: 'question', sourceOutputId: q.id, grounded: true },
+                );
+            } else if (!strictQuality) {
+                const back = relatedTerm
+                    ? `Review concept: ${relatedTerm}`
+                    : 'Review the source material for this question.';
+                addFlashcard(
+                    question,
+                    back,
+                    q.sourceChunkIds,
+                    { sourceType: 'question', sourceOutputId: q.id, grounded: false },
+                );
+            }
         }
     }
 
-    // 3. Concepts → Flashcards (concept recall prompt)
+    // 3. Concepts → Flashcards (grounded explanation on back)
     const concepts = learningOutputs.filter((o) => o.type === 'concept');
     for (const concept of concepts) {
         const term = concept.metadata?.term ?? (typeof concept.content === 'string' ? concept.content.trim() : '');
+        const explanation = concept.metadata?.explanation?.trim();
 
         if (term) {
-            addFlashcard(
-                `What is ${term}?`,
-                'Key concept identified in this resource.',
-                concept.sourceChunkIds,
-                { sourceType: 'concept', sourceOutputId: concept.id },
-            );
+            if (explanation && validateLearningAnswer(explanation)) {
+                addFlashcard(
+                    `What is ${term}?`,
+                    explanation,
+                    concept.sourceChunkIds,
+                    { sourceType: 'concept', sourceOutputId: concept.id, grounded: true },
+                );
+            } else if (!strictQuality) {
+                addFlashcard(
+                    `What is ${term}?`,
+                    'Key concept identified in this resource.',
+                    concept.sourceChunkIds,
+                    { sourceType: 'concept', sourceOutputId: concept.id, grounded: false },
+                );
+            }
         }
     }
 

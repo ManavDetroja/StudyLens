@@ -150,3 +150,11 @@ Day 17 implements client-side, offline selectable-text extraction for local PDF 
   - Extracted PDF content seamlessly powers Day 10 Learning Outputs (Extractive Summary, Key Concepts, Definitions, Questions), Day 12 Flashcards, and Day 13–14 Quizzes.
   - Reprocessing is idempotent: cleans previous chunks without duplicate accumulation.
 
+## Deterministic source-grounded learning output quality (Day 19)
+
+Day 19 improves deterministic source-grounded output quality across all StudyLens study aids without external AI or LLMs. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM.
+- **Evidence Retrieval Layer**: `js/processing/evidenceRetrieval.js` scores and retrieves relevant source sentences for concepts and questions.
+- **Placeholder Rejection**: `isGenericPlaceholder` and `validateLearningAnswer` reject generic boilerplate answers (such as `"Key concept identified in this resource"`, `"Review concept: ..."`).
+- **Expanded Definitions**: 9 syntactic definition patterns (including `"allows/enables"`, `"occurs when"`, `"represents"`, `"consists of"`).
+- **Grounded Flashcards & Quizzes**: Flashcard backs and quiz options are grounded in supporting source evidence with strict `sourceChunkIds` preservation.
+

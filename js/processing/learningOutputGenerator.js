@@ -79,6 +79,7 @@ export function generateLearningOutputs(processedContent, options = {}) {
             metadata: {
                 term: concept.term,
                 score: concept.score,
+                explanation: concept.explanation || undefined,
                 generator: 'deterministic-frequency',
             },
         });
@@ -108,6 +109,7 @@ export function generateLearningOutputs(processedContent, options = {}) {
             sourceChunkIds: q.sourceChunkIds,
             metadata: {
                 relatedTerm: q.term,
+                answer: q.answer || undefined,
                 generator: 'deterministic-pattern',
             },
         });

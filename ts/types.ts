@@ -117,6 +117,30 @@ export type LearningOutputType =
 /** Extensible, non-sensitive metadata for learning outputs. */
 export type LearningOutputMetadata = Record<string, unknown>;
 
+/** Grounded concept learning output metadata (Day 19). */
+export interface ConceptMetadata {
+    term: string;
+    score: number;
+    explanation?: string;
+    generator: string;
+}
+
+/** Grounded question learning output metadata (Day 19). */
+export interface QuestionMetadata {
+    relatedTerm?: string;
+    answer?: string;
+    generator: string;
+}
+
+/** Grounded source evidence candidate (Day 19). */
+export interface EvidenceCandidate {
+    sentence: { text: string; startOffset: number; endOffset: number };
+    text: string;
+    score: number;
+    chunkIds: number[];
+    index: number;
+}
+
 /**
  * Persisted learning output record in IndexedDB (Day 9).
  * Captures derived learning artifacts (summaries, notes, questions, etc.)

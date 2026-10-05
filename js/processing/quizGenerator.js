@@ -18,6 +18,10 @@ import {
     validateQuizQuestion,
 } from '../storage/quizValidation.js';
 import { QuizValidationError } from '../storage/errors.js';
+import {
+    isGenericPlaceholder,
+    validateLearningAnswer,
+} from './evidenceRetrieval.js';
 
 function stringHash(str) {
     let hash = 0;
@@ -89,7 +93,7 @@ export function generateQuiz(learningOutputs, resource, options = {}) {
             const colonIdx = d.content.indexOf(':');
             defText = colonIdx !== -1 ? d.content.slice(colonIdx + 1).trim() : d.content;
         }
-        if (term && defText) {
+        if (term && defText && !isGenericPlaceholder(defText) && !isGenericPlaceholder(term)) {
             allDefs.push({
                 term: term.trim(),
                 definition: defText.trim(),
@@ -101,7 +105,7 @@ export function generateQuiz(learningOutputs, resource, options = {}) {
     const allConceptTerms = [];
     concepts.forEach((c) => {
         const term = c.metadata?.term ?? (typeof c.content === 'string' ? c.content.trim() : '');
-        if (term && !allConceptTerms.includes(term)) {
+        if (term && !isGenericPlaceholder(term) && !allConceptTerms.includes(term)) {
             allConceptTerms.push(term);
         }
     });
@@ -182,16 +186,29 @@ export function generateQuiz(learningOutputs, resource, options = {}) {
     questionsPool.forEach((q, idx) => {
         const questionText = typeof q.content === 'string' ? q.content.trim() : '';
         const relatedTerm = q.metadata?.relatedTerm;
-        if (!questionText || usedQuestionTexts.has(questionText) || !relatedTerm) return;
+        if (!questionText || usedQuestionTexts.has(questionText)) return;
 
-        const matchingDef = allDefs.find(
-            (d) => d.term.toLowerCase() === relatedTerm.toLowerCase(),
-        );
+        let correctAnswer = null;
+        let sourceChunkIds = Array.isArray(q.sourceChunkIds) ? q.sourceChunkIds : [];
 
-        if (matchingDef) {
-            const correctAnswer = matchingDef.definition;
+        // Check if question has grounded answer in metadata
+        if (q.metadata?.answer && validateLearningAnswer(q.metadata.answer)) {
+            correctAnswer = q.metadata.answer.trim();
+        } else if (relatedTerm) {
+            const matchingDef = allDefs.find(
+                (d) => d.term.toLowerCase() === relatedTerm.toLowerCase(),
+            );
+            if (matchingDef) {
+                correctAnswer = matchingDef.definition;
+                if (sourceChunkIds.length === 0) {
+                    sourceChunkIds = matchingDef.sourceChunkIds;
+                }
+            }
+        }
+
+        if (correctAnswer && !isGenericPlaceholder(correctAnswer)) {
             const otherDefs = allDefs
-                .filter((d) => d.definition !== correctAnswer)
+                .filter((d) => d.definition !== correctAnswer && !isGenericPlaceholder(d.definition))
                 .map((d) => d.definition);
 
             if (otherDefs.length >= 1) {
@@ -204,7 +221,7 @@ export function generateQuiz(learningOutputs, resource, options = {}) {
                     question: questionText,
                     options: shuffledOptions,
                     correctAnswer,
-                    sourceChunkIds: Array.isArray(q.sourceChunkIds) ? q.sourceChunkIds : matchingDef.sourceChunkIds,
+                    sourceChunkIds,
                     order: rawQuestions.length,
                 });
                 usedQuestionTexts.add(questionText);
@@ -212,11 +229,15 @@ export function generateQuiz(learningOutputs, resource, options = {}) {
         }
     });
 
-    // Validate every generated question and filter out any malformed items
+    // Validate every generated question and filter out any malformed items or placeholders
     const validQuestions = [];
     for (const raw of rawQuestions) {
         try {
             validateQuizQuestion(raw);
+            // Reject any question where an option or answer is a generic placeholder
+            if (raw.options.some((opt) => isGenericPlaceholder(opt))) {
+                continue;
+            }
             validQuestions.push(raw);
             if (validQuestions.length >= maxQuestions) break;
         } catch {
