@@ -84,8 +84,8 @@ export interface NormalizedContent {
 export interface SourceAdapter {
     id: string;
     canHandle(resource: Resource): boolean;
-    extract(resource: Resource): string | Promise<string>;
-    normalize(extractedContent: string, resource: Resource): NormalizedContent | Promise<NormalizedContent>;
+    extract(resource: Resource, options?: Record<string, unknown>): unknown | Promise<unknown>;
+    normalize(extractedContent: unknown, resource: Resource, options?: Record<string, unknown>): NormalizedContent | Promise<NormalizedContent>;
 }
 
 /**
@@ -287,3 +287,25 @@ export interface FileBlobRecord {
     size: number;
     savedAt: string;
 }
+
+/** Standard processing error codes (Day 20). */
+export type ProcessingErrorCode =
+    | 'UNSUPPORTED_RESOURCE_TYPE'
+    | 'EXTRACTION_FAILED'
+    | 'NORMALIZATION_FAILED'
+    | 'CHUNKING_FAILED'
+    | 'PERSISTENCE_FAILED'
+    | 'RESOURCE_CONTENT_MISSING'
+    | 'FILE_BLOB_MISSING'
+    | 'PROCESSING_ALREADY_IN_PROGRESS'
+    | 'PROCESSING_INVALID_RESOURCE'
+    | 'STORAGE_RETRIEVAL_FAILED'
+    | 'NO_EXTRACTED_TEXT'
+    | 'NO_SELECTABLE_TEXT';
+
+/** Extracted content result for image adapter (Day 20). */
+export interface ImageExtractedContent {
+    text: string;
+    metadata?: Record<string, unknown>;
+}
+

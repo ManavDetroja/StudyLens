@@ -158,3 +158,18 @@ Day 19 improves deterministic source-grounded output quality across all StudyLen
 - **Expanded Definitions**: 9 syntactic definition patterns (including `"allows/enables"`, `"occurs when"`, `"represents"`, `"consists of"`).
 - **Grounded Flashcards & Quizzes**: Flashcard backs and quiz options are grounded in supporting source evidence with strict `sourceChunkIds` preservation.
 
+## Unified content processing orchestrator (Day 20)
+
+Day 20 unifies content extraction, normalization, chunking, and persistence across all supported source types (Text, PDF, Image) into a cohesive architecture without external AI or LLMs:
+- **Source Adapter Registry**: `js/processing/sourceAdapterRegistry.js` provides centralized registration, contract verification, discovery (`findAdapter(resource)`), and clean rejection for unsupported modalities (`UNSUPPORTED_RESOURCE_TYPE`).
+- **Image Source Adapter**: `js/processing/imageAdapter.js` conforms to the `SourceAdapter` contract (`id: 'image'`), extracting text from content, metadata, or blob storage with support for pluggable OCR extractors, deterministically normalizing text, and outputting standard normalized content snapshots.
+- **Pipeline Decoupling**: `ContentProcessingPipeline` delegates adapter lookup to `SourceAdapterRegistry` while standardizing resource validation, extraction, deterministic text normalization, paragraph-aware chunking, and chunk page/metadata enrichment.
+- **Unified Processing Orchestrator**: `js/features/processingIntegration.js` coordinates:
+  - Per-resource in-memory concurrency locks (`isResourceProcessing`, `getActiveProcessingIds`) preventing race conditions from duplicate trigger events (`PROCESSING_ALREADY_IN_PROGRESS`).
+  - Standardized status lifecycle (`pending` → `processing` → `completed` or `failed`) with failure rollback preserving original resource text and file blobs.
+  - Idempotent re-processing: deletes stale processed chunks before saving new chunks, guaranteeing zero duplicate chunk accumulation across repeated runs.
+  - Standardized error classification (`classifyProcessingError`) mapping pipeline errors into canonical codes (`UNSUPPORTED_SOURCE`, `EXTRACTION_FAILED`, `NORMALIZATION_FAILED`, `CHUNKING_FAILED`, `PERSISTENCE_FAILED`, `MISSING_SOURCE`, `MISSING_BLOB`).
+- **Resource Viewer Controls**: Unified extraction button supporting both PDF and Image resources with live status badges, in-place loading feedback, and friendly error guidance.
+- **Downstream Parity**: Extracted content from Text, PDF, and Image flows seamlessly into Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 linked Notes with strict source chunk traceability (`sourceChunkIds`).
+
+

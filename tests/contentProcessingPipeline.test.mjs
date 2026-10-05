@@ -35,7 +35,7 @@ test('pipeline validates, extracts, normalizes, and chunks a text resource', asy
 test('pipeline reports an unsupported but otherwise valid resource type', async () => {
     await assert.rejects(
         () => processResource(createResource({
-            type: 'image',
+            type: 'video',
             content: null,
             status: 'pending',
         })),

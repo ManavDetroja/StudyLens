@@ -21,7 +21,8 @@
 - Day 17: Browser-based PDF Text Extraction: offline PDF.js integration, pure client-side page-by-page text extractor, PDF Source Adapter, content processing pipeline integration with chunk page traceability, status lifecycle management, Resource Viewer extraction controls & multi-page formatting, and seamless downstream learning output, flashcard, and quiz generation. Complete.
 - Day 18: Local Image OCR Extraction: client-side image processing, normalized text conversion, and chunk integration. Complete.
 - Day 19: Deterministic Source-Grounded Learning Output Quality Engine: pure client-side evidence retrieval and relevance layer (`evidenceRetrieval.js`), forbidden placeholder rejection (`isGenericPlaceholder`), substantive answer validation (`validateLearningAnswer`), expanded definition patterns 1–9, source-grounded concept explanations, source-supported question answers, grounded flashcard backs, authentic MCQs, and exact source chunk traceability. Complete. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM.
-- Next: Day 20 — Video transcript extraction or spaced repetition review.
+- Day 20: Unified Content Processing Orchestrator: multimodal source adapter registry (`SourceAdapterRegistry`), Image source adapter (`imageAdapter`), pipeline decoupling, per-resource in-memory concurrency locks (`isResourceProcessing`), standardized status lifecycle, rollback failure preservation, idempotent chunk deduplication, canonical error classification, Resource Viewer unified extraction controls, and verified downstream parity across Text, PDF, and Image. Complete.
+- Next: Day 21 — Video transcript extraction or spaced repetition review.
 
 ## V2 — Content processing
 
@@ -34,7 +35,7 @@
 - Spaced repetition review and knowledge retention tracking.
 - Advanced analytics, spaced repetition algorithms, and knowledge-graph capabilities.
 
-Only the Day 17–19 text-, PDF-, and image-processing pipeline, local file import foundation, persistent storage (StudyLensDB v8), deterministic source-grounded learning output engine, structured reader UI, flashcards study system with grounded card backs, interactive quiz player with grounded MCQs, persistent quiz attempt results & basic analytics, and persistent notes workspace are implemented now. Additional V2 and all V3 items are plans, not active features.
+Only the Day 17–20 text-, PDF-, and image-processing unified pipeline, local file import foundation, persistent storage (StudyLensDB v8), deterministic source-grounded learning output engine, structured reader UI, flashcards study system with grounded card backs, interactive quiz player with grounded MCQs, persistent quiz attempt results & basic analytics, and persistent notes workspace are implemented now. Additional V2 and all V3 items are plans, not active features.
 
 
 

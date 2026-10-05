@@ -283,11 +283,11 @@ test('rejects processing when resource has no valid id', async () => {
 test('unsupported resource type throws UNSUPPORTED_RESOURCE_TYPE', async () => {
     const resRepo = createMockResourceRepository();
     const processedRepo = createMockProcessedContentRepository();
-    const imageResource = makeValidTextResource({ type: 'image', id: 'image-res-1' });
-    await resRepo.createResource(imageResource);
+    const videoResource = makeValidTextResource({ type: 'video', id: 'video-res-1' });
+    await resRepo.createResource(videoResource);
 
     await assert.rejects(
-        () => processAndStore(imageResource, { resRepo, processedRepo }),
+        () => processAndStore(videoResource, { resRepo, processedRepo }),
         (err) => {
             assert.ok(isProcessingError(err));
             assert.equal(err.code, 'UNSUPPORTED_RESOURCE_TYPE');

@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.20.0 — 2026-09-28
+
+- Implemented Unified Content Processing Orchestrator for StudyLens without external AI/LLMs (no Gemini, OpenAI, Claude, local models, or remote APIs), backend services, or cloud storage.
+- Created `SourceAdapterRegistry` (`js/processing/sourceAdapterRegistry.js`) providing centralized registration, discovery, contract validation, and lifecycle management for multimodal source adapters (Text, PDF, Image).
+- Implemented `ImageAdapter` (`js/processing/imageAdapter.js`) conforming strictly to the `SourceAdapter` contract (`id: 'image'`, `canHandle`, `extract`, `normalize`), retrieving text from content, metadata, or blob storage with support for pluggable OCR extractors.
+- Upgraded `ContentProcessingPipeline` (`js/processing/contentProcessingPipeline.js`) to decouple adapter selection through `SourceAdapterRegistry`, ensuring consistent execution of resource validation, source extraction, deterministic text normalization, paragraph-aware chunking, and metadata enrichment.
+- Enhanced `processingIntegration.js` (`js/features/processingIntegration.js`) into a robust Unified Processing Orchestrator:
+  - In-memory concurrency locks per `resourceId` (`isResourceProcessing`, `getActiveProcessingIds`) preventing race conditions from duplicate trigger events (`PROCESSING_ALREADY_IN_PROGRESS`).
+  - Standardized status lifecycle (`pending` → `processing` → `completed` or `failed`) with failure rollback preserving original resource text and file blobs.
+  - Idempotent re-processing: deletes stale processed chunks from `processedContent` before persisting new chunks, guaranteeing zero duplicate chunk accumulation.
+  - Standardized error classification (`classifyProcessingError`) mapping errors into canonical codes (`UNSUPPORTED_SOURCE`, `EXTRACTION_FAILED`, `NORMALIZATION_FAILED`, `CHUNKING_FAILED`, `PERSISTENCE_FAILED`, `MISSING_SOURCE`, `MISSING_BLOB`).
+- Upgraded Resource Viewer UI (`js/features/resourceViewer.js`):
+  - Unified extraction and reprocessing action supporting both PDF and Image resources.
+  - Color-coded status badges, live feedback transitions, and helpful user toasts.
+- Verified Downstream Parity: Processed Image resources seamlessly generate Day 10 Learning Outputs (Extractive Summary, Key Concepts, Definitions, Questions), Day 12 Flashcards (with source-grounded backs), Day 13–14 Quizzes (with authentic MCQs and scoring), and Day 15 linked Notes with strict source chunk traceability (`sourceChunkIds`).
+- Added 20 comprehensive unit and integration tests in `tests/unifiedProcessing.test.mjs` (total 335 tests across suite, 334 passing in Node, 1 browser-only skipped; 100% pass rate).
+- Verified full end-to-end browser execution in Headless Chrome via CDP across 7 verification steps (`scratch/verify_day20_browser.mjs`).
+- Updated TypeScript definitions in `ts/types.ts` (`ProcessingErrorCode`, `ImageExtractedContent`, updated `SourceAdapter`).
+
 ## 0.19.0 — 2026-09-27
 
 - Implemented Deterministic Source-Grounded Learning Output Quality Engine for StudyLens without external AI/LLMs (no Gemini, OpenAI, Claude, local models, or remote APIs), vector databases, embeddings, external NLP libraries, or backend services. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM.

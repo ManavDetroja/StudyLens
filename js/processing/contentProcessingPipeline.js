@@ -3,24 +3,17 @@ import { chunkNormalizedContent } from './contentChunker.js';
 import { ContentProcessingError, asContentProcessingError } from './errors.js';
 import { textAdapter } from './textAdapter.js';
 import { pdfAdapter } from './pdfAdapter.js';
+import { imageAdapter } from './imageAdapter.js';
+import {
+    SourceAdapterRegistry,
+    sourceAdapterRegistry,
+    assertAdapterContract,
+} from './sourceAdapterRegistry.js';
 
 function isPlainObject(value) {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
     const prototype = Object.getPrototypeOf(value);
     return prototype === Object.prototype || prototype === null;
-}
-
-function assertAdapter(adapter) {
-    if (!isPlainObject(adapter)
-        || typeof adapter.id !== 'string'
-        || adapter.id.trim() === ''
-        || typeof adapter.canHandle !== 'function'
-        || typeof adapter.extract !== 'function'
-        || typeof adapter.normalize !== 'function') {
-        throw new ContentProcessingError('A content adapter must provide id, canHandle, extract, and normalize methods.', {
-            code: 'INVALID_ADAPTER',
-        });
-    }
 }
 
 function assertNormalizedContent(content, resource) {
@@ -72,27 +65,38 @@ export function enrichSegmentsWithPages(segments, pageOffsets) {
  */
 export class ContentProcessingPipeline {
     constructor({
-        adapters = [textAdapter, pdfAdapter],
+        registry = null,
+        adapters = null,
         chunker = chunkNormalizedContent,
     } = {}) {
-        if (!Array.isArray(adapters)) {
-            throw new ContentProcessingError('Content adapters must be an array.', {
-                code: 'INVALID_ADAPTERS',
-            });
-        }
-        adapters.forEach(assertAdapter);
         if (typeof chunker !== 'function') {
             throw new ContentProcessingError('The content chunker must be a function.', {
                 code: 'INVALID_CHUNKER',
             });
         }
-
-        this.adapters = [...adapters];
         this.chunker = chunker;
+
+        if (adapters !== null) {
+            if (!Array.isArray(adapters)) {
+                throw new ContentProcessingError('Content adapters must be an array.', {
+                    code: 'INVALID_ADAPTERS',
+                });
+            }
+            adapters.forEach(assertAdapterContract);
+            this.registry = new SourceAdapterRegistry(adapters);
+        } else if (registry instanceof SourceAdapterRegistry) {
+            this.registry = registry;
+        } else {
+            this.registry = sourceAdapterRegistry;
+        }
+    }
+
+    get adapters() {
+        return this.registry.getAllAdapters();
     }
 
     findAdapter(resource) {
-        return this.adapters.find((adapter) => adapter.canHandle(resource)) ?? null;
+        return this.registry.findAdapter(resource);
     }
 
     async processResource(resource, { chunking, ...options } = {}) {

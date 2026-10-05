@@ -26,7 +26,7 @@ import { deleteNotesForResource } from './noteService.js';
 import { openNoteEditor } from './noteEditor.js';
 import { getFileBlob, deleteFileBlob } from './fileImportService.js';
 import { formatFileSize } from './fileImportConfig.js';
-import { processAndStore } from './processingIntegration.js';
+import { processAndStore, isResourceProcessing } from './processingIntegration.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
@@ -72,7 +72,7 @@ export function renderResourceContent(contentElement, content, resourceType = 't
     } else if (resourceType === 'pdf') {
         contentElement.textContent = 'This PDF has been saved locally. Click "Extract PDF content" below to extract readable text and study aids.';
     } else if (resourceType === 'image') {
-        contentElement.textContent = 'This image has been saved locally in StudyLens. Content extraction will be available in a future update.';
+        contentElement.textContent = 'This image has been saved locally. Click "Extract image text" below to process readable text and study aids.';
     } else {
         contentElement.textContent = 'No text content is available for this resource.';
     }
@@ -111,7 +111,7 @@ function renderFileSection(resource, fileBlobRecord) {
 
         let statusText = 'File saved locally (extraction pending)';
         if (resource.status === 'completed') {
-            statusText = resource.type === 'pdf' ? 'Content extracted & ready' : 'Completed';
+            statusText = resource.type === 'pdf' ? 'Content extracted & ready' : (resource.type === 'image' ? 'Text extracted & ready' : 'Completed');
         } else if (resource.status === 'processing') {
             statusText = 'Extracting content…';
         } else if (resource.status === 'failed') {
@@ -225,11 +225,16 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
     const outputsContainer = document.querySelector('[data-resource-viewer-outputs-container]');
     const extractPdfBtn = document.querySelector('[data-resource-viewer-extract-pdf]');
     if (extractPdfBtn) {
-        if (resource.type === 'pdf') {
+        if (resource.type === 'pdf' || resource.type === 'image') {
             extractPdfBtn.hidden = false;
             const hasExtracted = resource.status === 'completed' || Boolean(processed?.normalizedText);
-            extractPdfBtn.textContent = isExtractingPdf ? 'Extracting…' : (hasExtracted ? 'Reprocess PDF' : 'Extract PDF content');
-            extractPdfBtn.disabled = isExtractingPdf;
+            const isProcessing = isExtractingPdf || isResourceProcessing(resource.id);
+            if (resource.type === 'pdf') {
+                extractPdfBtn.textContent = isProcessing ? 'Extracting…' : (hasExtracted ? 'Reprocess PDF' : 'Extract PDF content');
+            } else {
+                extractPdfBtn.textContent = isProcessing ? 'Processing…' : (hasExtracted ? 'Reprocess image' : 'Extract image text');
+            }
+            extractPdfBtn.disabled = isProcessing;
         } else {
             extractPdfBtn.hidden = true;
         }
@@ -414,41 +419,50 @@ export async function openResourceViewer(resourceId) {
 
 export function initResourceViewer() {
     document.querySelector('[data-resource-viewer-extract-pdf]')?.addEventListener('click', async (event) => {
-        if (isExtractingPdf || !activeResource || activeResource.type !== 'pdf') return;
+        if (isExtractingPdf || !activeResource || (activeResource.type !== 'pdf' && activeResource.type !== 'image')) return;
 
         const btn = event.currentTarget;
         const wasReprocess = btn.textContent.toLowerCase().includes('reprocess');
+        const typeLabel = activeResource.type === 'pdf' ? 'PDF' : 'Image';
 
         isExtractingPdf = true;
         btn.disabled = true;
-        btn.textContent = 'Extracting…';
+        btn.textContent = activeResource.type === 'pdf' ? 'Extracting…' : 'Processing…';
 
         try {
             await processAndStore(activeResource);
             await refreshResourceViewer(activeResource.id);
-            showToast(wasReprocess ? 'PDF reprocessed successfully.' : 'PDF content extracted successfully.');
+            showToast(wasReprocess ? `${typeLabel} reprocessed successfully.` : `${typeLabel} content extracted successfully.`);
         } catch (err) {
-            console.error('StudyLens could not extract PDF content.', err);
+            console.error(`StudyLens could not extract ${typeLabel} content.`, err);
             try {
                 await refreshResourceViewer(activeResource.id);
             } catch {
                 // Secondary error ignored
             }
 
-            const isNoText = err?.code === 'NO_SELECTABLE_TEXT' ||
-                (typeof err?.message === 'string' && err.message.toLowerCase().includes('no selectable text'));
+            const isNoText = err?.code === 'NO_SELECTABLE_TEXT' || err?.code === 'NO_EXTRACTED_TEXT' ||
+                (typeof err?.message === 'string' && (err.message.toLowerCase().includes('no selectable text') || err.message.toLowerCase().includes('no readable text')));
 
             if (isNoText) {
-                showToast('No selectable text was found in this PDF. OCR will be supported in a future milestone.', { variant: 'error' });
+                if (activeResource.type === 'pdf') {
+                    showToast('No selectable text was found in this PDF. OCR will be supported in a future milestone.', { variant: 'error' });
+                } else {
+                    showToast('No readable text could be extracted from this image. Please ensure the image contains legible text.', { variant: 'error' });
+                }
             } else {
-                showToast('Could not extract PDF content: ' + (err.message || 'Please try again.'), { variant: 'error' });
+                showToast(`Could not extract ${typeLabel} content: ` + (err.message || 'Please try again.'), { variant: 'error' });
             }
         } finally {
             isExtractingPdf = false;
             if (activeResource) {
                 const hasExtracted = activeResource.status === 'completed';
                 btn.disabled = false;
-                btn.textContent = hasExtracted ? 'Reprocess PDF' : 'Extract PDF content';
+                if (activeResource.type === 'pdf') {
+                    btn.textContent = hasExtracted ? 'Reprocess PDF' : 'Extract PDF content';
+                } else {
+                    btn.textContent = hasExtracted ? 'Reprocess image' : 'Extract image text';
+                }
             }
         }
     });

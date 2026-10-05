@@ -562,6 +562,64 @@ GROUNDED LEARNING OUTPUTS (`js/processing/learningOutputGenerator.js`)
   - Purely extractive and pattern-based: requires clear grammatical structures or explicit sentence explanations in the source text.
   - Does not infer implicit information, synthesize across distant paragraphs, or rephrase with external general knowledge.
 
+## Unified content processing architecture (Day 20)
+
+Day 20 standardizes processing across all content modalities (Text, PDF, Image) into a single unified orchestration pipeline:
+
+```
+RESOURCE (Text | PDF | Image)
+  ↓
+SourceAdapterRegistry (findAdapter)
+  ├── textAdapter  ('text')
+  ├── pdfAdapter   ('pdf')
+  └── imageAdapter ('image')
+  ↓
+adapter.extract(resource, options)
+  ↓ Extracted Content Payload
+adapter.normalize(extracted, resource, options)
+  ↓ Normalized Content Model
+chunkNormalizedContent(text, chunking)
+  ↓ Ordered Contiguous Chunks
+enrichSegmentsWithPages (page & offset enrichment)
+  ↓ Segmented Processed Content
+ProcessedContentRepository (atomic save to IndexedDB)
+  ↓
+Resource status updated: 'completed'
+  ↓
+DOWNSTREAM LEARNING ENGINES
+  ├── Learning Outputs (Summary, Concepts, Definitions, Questions)
+  ├── Flashcards (with grounded backs)
+  ├── Quizzes (with authentic MCQs and scoring)
+  └── Notes (linked to parent resource)
+```
+
+### Module Responsibilities
+- **Source Adapter Registry (`js/processing/sourceAdapterRegistry.js`)**:
+  - `SourceAdapterRegistry` class and singleton `sourceAdapterRegistry`.
+  - Registration, contract verification (`assertAdapterContract`), retrieval (`getAdapter`), and discovery (`findAdapter`).
+  - Pre-registered default adapters: `textAdapter`, `pdfAdapter`, `imageAdapter`.
+- **Image Source Adapter (`js/processing/imageAdapter.js`)**:
+  - Conforms to `SourceAdapter` contract (`id: 'image'`).
+  - Extracts text from `options.text`, `resource.content`, `metadata.extractedText`, `metadata.ocrText`, or file blob with pluggable `options.ocrExtractor`.
+  - Enforces `FILE_BLOB_MISSING`, `NO_EXTRACTED_TEXT`, `RESOURCE_CONTENT_MISSING`.
+  - Deterministically normalizes extracted text into standard `NormalizedContent`.
+- **Content Processing Pipeline (`js/processing/contentProcessingPipeline.js`)**:
+  - Connects to `SourceAdapterRegistry` for adapter lookup.
+  - Standardizes the 4-step pipeline: Validation → Extraction → Normalization → Paragraph Chunking → Enrichment.
+  - Returns in-memory normalized content with ordered segments and traceability metadata.
+- **Unified Processing Orchestrator (`js/features/processingIntegration.js`)**:
+  - Per-resource in-memory concurrency locks (`isResourceProcessing`, `getActiveProcessingIds`) preventing duplicate trigger race conditions (`PROCESSING_ALREADY_IN_PROGRESS`).
+  - Idempotent re-processing: deletes stale processed chunks before saving new chunks, preventing chunk accumulation.
+  - Standardized status lifecycle: `pending` → `processing` → `completed` or `failed`.
+  - Rollback failure preservation: original resource data and file blobs are never deleted on failure; error diagnostics stored in `metadata.processingError` and `metadata.processingErrorCode`.
+  - Standardized error classification (`classifyProcessingError`) with canonical categories (`UNSUPPORTED_SOURCE`, `EXTRACTION_FAILED`, `NORMALIZATION_FAILED`, `CHUNKING_FAILED`, `PERSISTENCE_FAILED`, `MISSING_SOURCE`, `MISSING_BLOB`).
+- **Resource Viewer UI Integration (`js/features/resourceViewer.js`)**:
+  - Unified extraction/reprocessing button supporting both PDF and Image resources.
+  - Live loading state transitions ("Extracting…", "Processing…") and color-coded status badges.
+- **Downstream Feature Parity**:
+  - Extracted content from Text, PDF, and Image resources seamlessly powers Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 linked Notes.
+
+
 
 
 

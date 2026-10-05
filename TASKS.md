@@ -129,12 +129,22 @@
 - [x] Add 18 comprehensive unit tests in `tests/evidenceRetrieval.test.mjs` covering placeholder rejection, evidence retrieval, question answering, source chunk preservation, deterministic repeated generation, and explicit regression testing for the original problem.
 - [x] Verify complete browser quality pipeline on Java OOP concepts via automated Headless Chrome CDP audit across 9 verification steps (`scratch/verify_day19_browser.mjs`).
 - [x] Update TypeScript declarations in `ts/types.ts` for concept metadata, question metadata, and evidence candidates.
+- [x] Implement Source Adapter Registry (`SourceAdapterRegistry`, `sourceAdapterRegistry` in `js/processing/sourceAdapterRegistry.js`) for centralized adapter registration, lookup, contract verification, and graceful unsupported type handling.
+- [x] Implement Image Source Adapter (`imageAdapter` in `js/processing/imageAdapter.js`) conforming strictly to the `SourceAdapter` contract, retrieving image text from content, metadata, or blob storage with support for pluggable OCR extractors.
+- [x] Decouple adapter management in `ContentProcessingPipeline` (`js/processing/contentProcessingPipeline.js`) to use `SourceAdapterRegistry`, ensuring unified extraction, normalization, and chunking across all source formats.
+- [x] Upgrade `processingIntegration.js` (`js/features/processingIntegration.js`) into a unified content processing orchestrator with in-memory concurrency locks per `resourceId` (`isResourceProcessing`), standardized status lifecycle, rollback preservation, and idempotent chunk replacement.
+- [x] Standardize error classification (`classifyProcessingError`) mapping pipeline errors into canonical codes (`UNSUPPORTED_SOURCE`, `EXTRACTION_FAILED`, `NORMALIZATION_FAILED`, `CHUNKING_FAILED`, `PERSISTENCE_FAILED`, `MISSING_SOURCE`, `MISSING_BLOB`, `PROCESSING_ALREADY_IN_PROGRESS`).
+- [x] Enhance Resource Viewer (`js/features/resourceViewer.js`) with unified extraction and reprocessing action supporting both PDF and Image resources.
+- [x] Verify downstream feature parity: processed Image resources seamlessly generate Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 linked Notes with strict source chunk traceability.
+- [x] Add 20 comprehensive unit and integration tests in `tests/unifiedProcessing.test.mjs`.
+- [x] Verify full browser runtime execution in Headless Chrome via CDP across 7 verification steps (`scratch/verify_day20_browser.mjs`).
+- [x] Update TypeScript declarations in `ts/types.ts` (`ProcessingErrorCode`, `ImageExtractedContent`, `SourceAdapter`).
 
 ## Next
 
-- [ ] Implement YouTube / video transcript adapters or spaced repetition review (Day 20+).
+- [ ] Implement YouTube / video transcript adapters or spaced repetition review (Day 21+).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; video transcripts; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, and local image resources with deterministic content processing pipelines, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM.
+No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; video transcripts; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, and local image resources with unified content processing pipelines, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM. Day 20 unifies content processing across modalities.
 
