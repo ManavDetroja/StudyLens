@@ -1,4 +1,4 @@
-import { notifyResourcesChanged } from '../core/resourceEvents.js';
+import { notifyResourcesChanged, onResourcesChanged } from '../core/resourceEvents.js';
 import { resourceRepository } from '../storage/resourceStore.js';
 import { learningOutputRepository } from '../storage/learningOutputStore.js';
 import { closeDialog, openDialog } from '../ui/modal.js';
@@ -27,6 +27,8 @@ import { openNoteEditor } from './noteEditor.js';
 import { getFileBlob, deleteFileBlob } from './fileImportService.js';
 import { formatFileSize } from './fileImportConfig.js';
 import { processAndStore, isResourceProcessing } from './processingIntegration.js';
+import { buildYouTubeThumbnailUrl } from './youtubeUrlValidator.js';
+import { openPasteTranscriptDialog } from './videoResourceForm.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
@@ -34,6 +36,7 @@ let isGenerating = false;
 let isGeneratingFlashcards = false;
 let isGeneratingQuiz = false;
 let isExtractingPdf = false;
+let isProcessingVideo = false;
 let activeBlobUrl = null;
 
 function revokeActiveBlobUrl() {
@@ -73,6 +76,8 @@ export function renderResourceContent(contentElement, content, resourceType = 't
         contentElement.textContent = 'This PDF has been saved locally. Click "Extract PDF content" below to extract readable text and study aids.';
     } else if (resourceType === 'image') {
         contentElement.textContent = 'This image has been saved locally. Click "Extract image text" below to process readable text and study aids.';
+    } else if (resourceType === 'video') {
+        contentElement.textContent = 'This YouTube video has no transcript yet. Browser security restrictions prevent automatic caption scraping. Click "Paste transcript" below to add the video transcript and generate study aids.';
     } else {
         contentElement.textContent = 'No text content is available for this resource.';
     }
@@ -154,6 +159,116 @@ function renderFileSection(resource, fileBlobRecord) {
             }
         } else {
             imagePreviewContainer.hidden = true;
+        }
+    }
+}
+
+function renderVideoSection(resource, processed = null) {
+    const videoSection = document.querySelector('[data-resource-viewer-video-section]');
+    const videoInfoContainer = document.querySelector('[data-resource-viewer-video-info]');
+    const previewContainer = document.querySelector('[data-resource-viewer-video-preview]');
+
+    if (!videoSection) return;
+
+    if (resource.type !== 'video') {
+        videoSection.hidden = true;
+        if (videoInfoContainer) videoInfoContainer.replaceChildren();
+        if (previewContainer) {
+            previewContainer.replaceChildren();
+            previewContainer.hidden = true;
+        }
+        return;
+    }
+
+    videoSection.hidden = false;
+
+    if (videoInfoContainer) {
+        videoInfoContainer.replaceChildren();
+
+        const videoId = resource.metadata?.videoId || 'Unknown';
+        const canonicalUrl = resource.metadata?.canonicalUrl || resource.source || '';
+        const hasTranscript = Boolean(
+            (typeof resource.content === 'string' && resource.content.trim().length > 0) ||
+            (processed && typeof processed.normalizedText === 'string' && processed.normalizedText.trim().length > 0)
+        );
+
+        let statusText = 'Transcript pending';
+        if (hasTranscript) {
+            statusText = 'Transcript available & processed';
+        } else if (resource.metadata?.transcriptStatus === 'unavailable') {
+            statusText = 'Transcript unavailable (CORS restricted)';
+        }
+
+        const items = [
+            { label: 'Provider', value: 'YouTube' },
+            { label: 'Video ID', value: videoId },
+            { label: 'Transcript', value: statusText },
+        ];
+
+        if (processed?.chunks?.length) {
+            items.push({ label: 'Segments', value: `${processed.chunks.length} chunks` });
+        }
+
+        items.forEach(({ label, value }) => {
+            const dt = document.createElement('span');
+            dt.className = 'file-info-label';
+            dt.textContent = label + ':';
+            const dd = document.createElement('span');
+            dd.className = 'file-info-value';
+            dd.textContent = value;
+            videoInfoContainer.append(dt, dd);
+        });
+
+        if (canonicalUrl) {
+            const dt = document.createElement('span');
+            dt.className = 'file-info-label';
+            dt.textContent = 'Source link:';
+            const dd = document.createElement('span');
+            dd.className = 'file-info-value';
+            const link = document.createElement('a');
+            link.className = 'video-link-action';
+            link.href = canonicalUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = 'Open on YouTube ↗';
+            dd.append(link);
+            videoInfoContainer.append(dt, dd);
+        }
+    }
+
+    if (previewContainer) {
+        previewContainer.replaceChildren();
+        const videoId = resource.metadata?.videoId;
+        if (videoId) {
+            const thumbUrl = buildYouTubeThumbnailUrl(videoId, 'hqdefault');
+            const thumbLink = document.createElement('a');
+            thumbLink.href = resource.metadata?.canonicalUrl || `https://www.youtube.com/watch?v=${videoId}`;
+            thumbLink.target = '_blank';
+            thumbLink.rel = 'noopener noreferrer';
+            thumbLink.className = 'video-thumbnail-container';
+
+            const img = document.createElement('img');
+            img.src = thumbUrl;
+            img.alt = `YouTube video thumbnail for ${resource.title}`;
+            img.loading = 'lazy';
+            thumbLink.append(img);
+            previewContainer.append(thumbLink);
+
+            const hasTranscript = Boolean(
+                (typeof resource.content === 'string' && resource.content.trim().length > 0) ||
+                (processed && typeof processed.normalizedText === 'string' && processed.normalizedText.trim().length > 0)
+            );
+
+            if (!hasTranscript) {
+                const notice = document.createElement('div');
+                notice.className = 'video-cors-notice';
+                notice.innerHTML = '<p><strong>Direct browser transcript extraction is unavailable:</strong> Modern browsers enforce CORS security policies preventing direct YouTube caption retrieval.</p><p>Click <em>"Paste transcript"</em> below to add the video transcript or captions to enable study aids.</p>';
+                previewContainer.append(notice);
+            }
+
+            previewContainer.hidden = false;
+        } else {
+            previewContainer.hidden = true;
         }
     }
 }
@@ -240,10 +355,33 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
         }
     }
 
+    const processVideoBtn = document.querySelector('[data-resource-viewer-process-video]');
+    const pasteTranscriptBtn = document.querySelector('[data-resource-viewer-paste-transcript]');
     const hasContent = Boolean(
         (typeof resource.content === 'string' && resource.content.trim().length > 0) ||
         (processed && typeof processed.normalizedText === 'string' && processed.normalizedText.trim().length > 0)
     );
+
+    if (processVideoBtn) {
+        if (resource.type === 'video') {
+            processVideoBtn.hidden = false;
+            const hasExtracted = resource.status === 'completed' || Boolean(processed?.normalizedText);
+            const isProcessing = isProcessingVideo || isResourceProcessing(resource.id);
+            processVideoBtn.textContent = isProcessing ? 'Processing transcript…' : (hasExtracted ? 'Reprocess transcript' : 'Process transcript');
+            processVideoBtn.disabled = isProcessing || !hasContent;
+        } else {
+            processVideoBtn.hidden = true;
+        }
+    }
+
+    if (pasteTranscriptBtn) {
+        if (resource.type === 'video') {
+            pasteTranscriptBtn.hidden = false;
+            pasteTranscriptBtn.textContent = hasContent ? 'Edit transcript' : 'Paste transcript';
+        } else {
+            pasteTranscriptBtn.hidden = true;
+        }
+    }
     const hasOutputs = Boolean(outputsSummary && outputsSummary.hasOutputs);
 
     if (outputsBadge) {
@@ -358,6 +496,7 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
     }
 
     renderFileSection(resource, fileBlobRecord);
+    renderVideoSection(resource, processed);
     renderResourceContent(document.querySelector('[data-resource-viewer-content]'), resource.content, resource.type, processed);
     renderTags(resource.tags);
 }
@@ -465,6 +604,41 @@ export function initResourceViewer() {
                 }
             }
         }
+    });
+
+    document.querySelector('[data-resource-viewer-process-video]')?.addEventListener('click', async (event) => {
+        if (isProcessingVideo || !activeResource || activeResource.type !== 'video') return;
+
+        const hasContent = typeof activeResource.content === 'string' && activeResource.content.trim().length > 0;
+        if (!hasContent) {
+            showToast('No transcript content available to process. Please paste transcript first.', { variant: 'error' });
+            return;
+        }
+
+        const btn = event.currentTarget;
+        isProcessingVideo = true;
+        btn.disabled = true;
+        btn.textContent = 'Processing transcript…';
+
+        try {
+            await processAndStore(activeResource);
+            await refreshResourceViewer(activeResource.id);
+            showToast('Video transcript processed successfully.');
+        } catch (err) {
+            console.error('StudyLens could not process video transcript.', err);
+            showToast('Could not process video transcript: ' + (err.message || 'Please try again.'), { variant: 'error' });
+        } finally {
+            isProcessingVideo = false;
+            if (activeResource) {
+                btn.disabled = false;
+                btn.textContent = 'Reprocess transcript';
+            }
+        }
+    });
+
+    document.querySelector('[data-resource-viewer-paste-transcript]')?.addEventListener('click', () => {
+        if (!activeResource || activeResource.type !== 'video') return;
+        openPasteTranscriptDialog(activeResource);
     });
 
     document.querySelector('[data-resource-viewer-generate]')?.addEventListener('click', async (event) => {
@@ -660,5 +834,14 @@ export function initResourceViewer() {
 
     viewerDialog()?.addEventListener('close', () => {
         revokeActiveBlobUrl();
+    });
+
+    onResourcesChanged(async ({ action, resourceId }) => {
+        if (activeResource && activeResource.id === resourceId && action === 'updated') {
+            const dialog = viewerDialog();
+            if (dialog && dialog.open) {
+                await refreshResourceViewer(resourceId);
+            }
+        }
     });
 }

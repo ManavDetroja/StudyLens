@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { processResource } from '../js/processing/contentProcessingPipeline.js';
+import { ContentProcessingPipeline, processResource } from '../js/processing/contentProcessingPipeline.js';
+import { textAdapter } from '../js/processing/textAdapter.js';
 
 function createResource(overrides = {}) {
     return {
@@ -33,8 +34,9 @@ test('pipeline validates, extracts, normalizes, and chunks a text resource', asy
 });
 
 test('pipeline reports an unsupported but otherwise valid resource type', async () => {
+    const textOnlyPipeline = new ContentProcessingPipeline({ adapters: [textAdapter] });
     await assert.rejects(
-        () => processResource(createResource({
+        () => textOnlyPipeline.processResource(createResource({
             type: 'video',
             content: null,
             status: 'pending',

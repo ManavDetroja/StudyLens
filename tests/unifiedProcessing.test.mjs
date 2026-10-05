@@ -9,6 +9,7 @@ import {
 import { textAdapter } from '../js/processing/textAdapter.js';
 import { pdfAdapter } from '../js/processing/pdfAdapter.js';
 import { imageAdapter } from '../js/processing/imageAdapter.js';
+import { videoAdapter } from '../js/processing/videoAdapter.js';
 import {
     ContentProcessingPipeline,
     processResource,
@@ -134,17 +135,19 @@ test('3. Registry unregister and clear operations work correctly', () => {
     assert.equal(registry.getAllAdapters().length, 0);
 
     registry.resetDefaultAdapters();
-    assert.equal(registry.getAllAdapters().length, 3);
+    assert.equal(registry.getAllAdapters().length, 4);
     assert.ok(registry.hasAdapter('text'));
     assert.ok(registry.hasAdapter('pdf'));
     assert.ok(registry.hasAdapter('image'));
+    assert.ok(registry.hasAdapter('video'));
 });
 
 test('4. Registry findAdapter finds appropriate adapter and returns null for unknown', () => {
     assert.equal(sourceAdapterRegistry.findAdapter({ type: 'text' }), textAdapter);
     assert.equal(sourceAdapterRegistry.findAdapter({ type: 'pdf' }), pdfAdapter);
     assert.equal(sourceAdapterRegistry.findAdapter({ type: 'image' }), imageAdapter);
-    assert.equal(sourceAdapterRegistry.findAdapter({ type: 'video' }), null);
+    assert.equal(sourceAdapterRegistry.findAdapter({ type: 'video' }), videoAdapter);
+    assert.equal(sourceAdapterRegistry.findAdapter({ type: 'audio' }), null);
     assert.equal(sourceAdapterRegistry.findAdapter(null), null);
     assert.equal(sourceAdapterRegistry.findAdapter({}), null);
 });
@@ -317,6 +320,7 @@ test('14. Unified pipeline processes Text, PDF, and Image through common interfa
 });
 
 test('15. Unified pipeline cleanly rejects unsupported resource types', async () => {
+    const pipelineWithoutVideo = new ContentProcessingPipeline({ adapters: [textAdapter, pdfAdapter, imageAdapter] });
     const unsupportedRes = {
         id: 'res-video',
         title: 'Video lecture',
@@ -331,7 +335,7 @@ test('15. Unified pipeline cleanly rejects unsupported resource types', async ()
     };
 
     await assert.rejects(
-        () => processResource(unsupportedRes),
+        () => pipelineWithoutVideo.processResource(unsupportedRes),
         { code: 'UNSUPPORTED_RESOURCE_TYPE' }
     );
 });

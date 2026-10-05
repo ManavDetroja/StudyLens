@@ -8,6 +8,8 @@ import {
     isProcessingError,
 } from '../js/features/processingIntegration.js';
 import { ContentProcessingError } from '../js/processing/errors.js';
+import { ContentProcessingPipeline } from '../js/processing/contentProcessingPipeline.js';
+import { textAdapter } from '../js/processing/textAdapter.js';
 
 /* ── Test helpers and in-memory mock repositories ─────────────────── */
 
@@ -286,8 +288,10 @@ test('unsupported resource type throws UNSUPPORTED_RESOURCE_TYPE', async () => {
     const videoResource = makeValidTextResource({ type: 'video', id: 'video-res-1' });
     await resRepo.createResource(videoResource);
 
+    const textOnlyPipeline = new ContentProcessingPipeline({ adapters: [textAdapter] });
+
     await assert.rejects(
-        () => processAndStore(videoResource, { resRepo, processedRepo }),
+        () => processAndStore(videoResource, { resRepo, processedRepo, pipeline: textOnlyPipeline }),
         (err) => {
             assert.ok(isProcessingError(err));
             assert.equal(err.code, 'UNSUPPORTED_RESOURCE_TYPE');

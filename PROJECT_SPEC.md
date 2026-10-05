@@ -172,4 +172,16 @@ Day 20 unifies content extraction, normalization, chunking, and persistence acro
 - **Resource Viewer Controls**: Unified extraction button supporting both PDF and Image resources with live status badges, in-place loading feedback, and friendly error guidance.
 - **Downstream Parity**: Extracted content from Text, PDF, and Image flows seamlessly into Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 linked Notes with strict source chunk traceability (`sourceChunkIds`).
 
+## YouTube video learning resources and transcript ingestion (Day 21)
+
+Day 21 introduces YouTube video learning materials and pure client-side transcript ingestion into the unified content processing architecture without external AI/LLMs or fragile scraping hacks:
+- **YouTube URL Validation**: `js/features/youtubeUrlValidator.js` provides deterministic parsing via native `URL` API, extracting canonical 11-char video IDs from standard watch URLs, short links (`youtu.be`), embed links, and shorts while rejecting untrusted domains and malformed inputs.
+- **Transcript Parser**: `js/processing/transcriptParser.js` parses timestamps (`MM:SS`, `HH:MM:SS`) into numeric seconds and structured segments (`{ index, text, timestamp, startSeconds, endSeconds }`) from SRT/VTT files, YouTube transcript format, or plain text while retaining clean text for downstream normalization.
+- **Transcript Acquisition Provider**: `js/processing/transcriptProvider.js` honestly reports client-side browser CORS restrictions (`TRANSCRIPT_UNAVAILABLE`), preventing fragile scraping hacks and providing clean fallback paths.
+- **Video Source Adapter**: `js/processing/videoAdapter.js` conforms to `SourceAdapter` contract (`id: 'video'`) and is registered in `sourceAdapterRegistry`.
+- **User Interface**: `#video-resource-dialog` on dashboard and `#paste-transcript-dialog` in resource viewer allow easy video creation and manual transcript pasting.
+- **Resource Viewer Integration**: Displays YouTube video details, canonical link, thumbnail preview, CORS notice, and "Process transcript" / "Paste transcript" actions.
+- **Downstream Feature Parity**: Processed video transcripts flow seamlessly into Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 Notes with authentic `sourceChunkIds`.
+
+
 

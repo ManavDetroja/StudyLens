@@ -619,6 +619,70 @@ DOWNSTREAM LEARNING ENGINES
 - **Downstream Feature Parity**:
   - Extracted content from Text, PDF, and Image resources seamlessly powers Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 linked Notes.
 
+## Video Learning Resources & Transcript Ingestion (Day 21)
+
+Day 21 extends the unified processing architecture to YouTube and video learning resources, focusing on reliable client-side URL validation, timestamp and transcript parsing, honest browser capability reporting (CORS restrictions), and seamless integration into the downstream study pipeline.
+
+### Target Architecture & Data Flow
+```
+YouTube URL / Video Metadata
+    ↓
+URL Validation & Normalization (`js/features/youtubeUrlValidator.js`)
+    ↓
+Resource Creation (`type: 'video'`, `metadata.youtubeId`, `metadata.canonicalUrl`)
+    ↓
+Resource Viewer & Transcript Options
+    ├── Option A: Provided Transcript (Manual paste dialog / File / Options)
+    └── Option B: Auto Fetch (Pluggable `transcriptFetcher`, defaults to honest `TRANSCRIPT_UNAVAILABLE` due to browser CORS)
+    ↓
+Transcript Acquisition & Parser (`js/processing/transcriptParser.js` + `transcriptProvider.js`)
+    - SRT / VTT caption format parsing
+    - YouTube copy-paste timestamp parsing (`MM:SS` / `HH:MM:SS`)
+    - Plain text fallback
+    - Temporal segmentation & timestamp preservation
+    ↓
+Video Source Adapter (`js/processing/videoAdapter.js` with `id: 'video'`)
+    - Conforms to `SourceAdapter` contract
+    - Registered in `SourceAdapterRegistry`
+    ↓
+Content Processing Pipeline (`js/processing/contentProcessingPipeline.js`)
+    ↓
+Standard Normalization & Chunks (`js/storage/processedContentStore.js`)
+    ↓
+DOWNSTREAM LEARNING ENGINES
+    ├── Learning Outputs (Summary, Concepts, Definitions, Questions)
+    ├── Flashcards (with grounded backs)
+    ├── Quizzes (with MCQs and distractor generation)
+    └── Notes (linked to parent video resource)
+```
+
+### Module Responsibilities
+- **YouTube URL Validation (`js/features/youtubeUrlValidator.js`)**:
+  - Pure native `URL` API parsing and host validation against `youtube.com`, `www.youtube.com`, `m.youtube.com`, and `youtu.be`.
+  - Supports standard watch URLs (`/watch?v=...`), short links (`youtu.be/...`), embed URLs (`/embed/...`), and shorts (`/shorts/...`).
+  - Strict 11-character alphanumeric identifier regex (`/^[a-zA-Z0-9_-]{11}$/`).
+  - Helper functions for building canonical links, embed URLs, and thumbnail image URLs.
+- **Transcript Parsing (`js/processing/transcriptParser.js`)**:
+  - Deterministic parser supporting `MM:SS` and `HH:MM:SS` timestamps, SRT captions, WebVTT captions, and YouTube copy-pasted transcript text.
+  - Cleans subtitle markup (tags like `<c>`, font tags) and collapses redundant whitespace.
+  - Generates structured segments with timing metadata (`startOffset`, `endOffset`, `startSeconds`, `endSeconds`, `timestampLabel`) and normalized full text.
+- **Transcript Acquisition & Provider (`js/processing/transcriptProvider.js`)**:
+  - Extensible `TranscriptProvider` abstraction for video transcripts.
+  - Evaluates provided input from processing options, existing `resource.content`, or resource metadata.
+  - Architectural honesty: when no transcript is provided and in a pure client-side browser context without backend proxies, throws `TRANSCRIPT_UNAVAILABLE` with clear diagnostic information explaining browser CORS constraints.
+- **Video Source Adapter (`js/processing/videoAdapter.js`)**:
+  - Conforms to the `SourceAdapter` plain-object contract (`id: 'video'`, `canHandle`, `extract`, `normalize`).
+  - Registered in `sourceAdapterRegistry`.
+  - Converts parsed transcript segments and text into standard `NormalizedContent`.
+- **UI Integration (`js/features/videoResourceForm.js`, `index.html`, `css/components.css`)**:
+  - `#video-resource-dialog`: Quick action modal for creating video resources with real-time URL validation, thumbnail preview, optional initial transcript, and tag normalization.
+  - `#paste-transcript-dialog`: Modal in the Resource Viewer allowing users to easily paste transcripts (with or without timestamps / SRT) into existing video resources.
+  - Video resource card in the Resource Viewer: Displays video title, canonical link, video ID, thumbnail preview, CORS restriction notice, and buttons to process or paste transcripts.
+- **Downstream Feature Parity**:
+  - Video resources with ingested transcripts are saved to `processedContentStore` as ordered chunks with authentic `sourceChunkIds`.
+  - Directly drives Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 Notes with zero specialized downstream handling needed.
+
+
 
 
 

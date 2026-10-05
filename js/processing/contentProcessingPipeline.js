@@ -148,5 +148,8 @@ export class ContentProcessingPipeline {
 export const contentProcessingPipeline = new ContentProcessingPipeline();
 
 export function processResource(resource, options) {
+    if (options?.pipeline && typeof options.pipeline.processResource === 'function') {
+        return options.pipeline.processResource(resource, options);
+    }
     return contentProcessingPipeline.processResource(resource, options);
 }

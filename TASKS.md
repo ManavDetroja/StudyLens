@@ -138,13 +138,22 @@
 - [x] Verify downstream feature parity: processed Image resources seamlessly generate Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 linked Notes with strict source chunk traceability.
 - [x] Add 20 comprehensive unit and integration tests in `tests/unifiedProcessing.test.mjs`.
 - [x] Verify full browser runtime execution in Headless Chrome via CDP across 7 verification steps (`scratch/verify_day20_browser.mjs`).
-- [x] Update TypeScript declarations in `ts/types.ts` (`ProcessingErrorCode`, `ImageExtractedContent`, `SourceAdapter`).
+- [x] Implement deterministic YouTube URL validation (`js/features/youtubeUrlValidator.js`) supporting standard watch, short URLs, embeds, and shorts, extracting canonical 11-char IDs while rejecting malformed/unsupported URLs.
+- [x] Implement deterministic Transcript Parser (`js/processing/transcriptParser.js`) parsing timestamps (MM:SS, HH:MM:SS), SRT/VTT captions, and plain text into structured segments with duration and timing metadata.
+- [x] Implement Transcript Acquisition Provider (`js/processing/transcriptProvider.js`) with honest browser CORS capability reporting, distinguishing between available transcripts and explicit CORS unavailability without scraping.
+- [x] Implement Video Source Adapter (`videoAdapter` in `js/processing/videoAdapter.js`) conforming to `SourceAdapter` contract and registered in `sourceAdapterRegistry`.
+- [x] Build YouTube resource input dialog (`#video-resource-dialog` and `js/features/videoResourceForm.js`) and manual transcript fallback dialog (`#paste-transcript-dialog`).
+- [x] Enhance Resource Viewer (`js/features/resourceViewer.js`) with video metadata, YouTube link, thumbnail preview, CORS notice, process transcript action, and paste transcript trigger.
+- [x] Verify downstream feature parity: video transcripts process into `processedContent` chunks and generate Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 Notes with authentic sourceChunkIds.
+- [x] Add 21 comprehensive unit tests in `tests/youtubeVideoProcessing.test.mjs` (356 total tests, 355 passing in Node, 1 browser-only skipped; 100% pass rate).
+- [x] Verify full browser runtime execution in Headless Chrome via CDP across 10 verification steps (`scratch/verify_day21_browser.mjs`).
+- [x] Update TypeScript declarations in `ts/types.ts` (`TranscriptSegment`, `ParsedTranscript`, `VideoResourceMetadata`).
 
 ## Next
 
-- [ ] Implement YouTube / video transcript adapters or spaced repetition review (Day 21+).
+- [ ] Implement spaced repetition review (Leitner / SM-2) or multi-resource study sets (Day 22+).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; video transcripts; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, and local image resources with unified content processing pipelines, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM. Day 20 unifies content processing across modalities.
+No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, local image resources, and YouTube video resources with transcript ingestion, unified content processing pipelines, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM. Day 20 unifies content processing across modalities. Day 21 introduces YouTube video resources and honest transcript ingestion.
 

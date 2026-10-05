@@ -60,6 +60,43 @@ export interface PdfPageOffset {
     endOffset: number;
 }
 
+/** A parsed transcript segment with timing metadata (Day 21). */
+export interface TranscriptSegment {
+    index: number;
+    text: string;
+    timestamp: string;
+    startSeconds: number;
+    endSeconds?: number;
+    endTimestamp?: string;
+}
+
+/** Result of parsing transcript text (Day 21). */
+export interface ParsedTranscript {
+    rawText: string;
+    text: string;
+    hasTimestamps: boolean;
+    segments: TranscriptSegment[];
+    metadata: {
+        segmentCount: number;
+        hasTimestamps: boolean;
+        totalDurationSeconds: number;
+        formattedDuration: string;
+        [key: string]: unknown;
+    };
+}
+
+/** YouTube Video Resource metadata (Day 21). */
+export interface VideoResourceMetadata {
+    provider: 'youtube';
+    videoId: string;
+    canonicalUrl: string;
+    originalUrl?: string;
+    transcriptStatus: 'pending' | 'available' | 'unavailable' | 'manual';
+    hasTimestamps?: boolean;
+    transcript?: string | null;
+    [key: string]: unknown;
+}
+
 /** Extensible, non-sensitive adapter metadata for a normalized content snapshot. */
 export type NormalizedContentMetadata = Record<string, unknown>;
 

@@ -223,6 +223,73 @@
             <div class="modal-footer dialog-actions"><button class="button button-secondary" type="button" data-dialog-close>Cancel</button><button class="button button-primary" type="submit" data-file-import-submit disabled>Import file</button></div>
         </form>
     </dialog>
+    <dialog class="modal resource-dialog" id="video-resource-dialog" aria-labelledby="video-resource-dialog-title" aria-describedby="video-resource-dialog-description" data-dialog>
+        <form id="video-resource-form" novalidate>
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Video material</p>
+                    <h2 id="video-resource-dialog-title" data-video-resource-title>Add YouTube video</h2>
+                </div>
+                <button class="icon-button" type="button" aria-label="Close video resource form" data-dialog-close>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
+            <p id="video-resource-dialog-description" data-video-resource-description>Add a YouTube video link to your library and provide captions or transcript for study aids.</p>
+            <div class="form-stack">
+                <div class="field">
+                    <label for="video-resource-url-input">YouTube URL</label>
+                    <input id="video-resource-url-input" name="url" type="url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=..." required aria-describedby="video-resource-url-help" />
+                    <p class="form-helper" id="video-resource-url-help">Supports standard watch links, youtu.be short URLs, and shorts.</p>
+                </div>
+                <div class="field">
+                    <label for="video-resource-title-input">Title</label>
+                    <input id="video-resource-title-input" name="title" type="text" autocomplete="off" required aria-describedby="video-resource-title-help" />
+                    <p class="form-helper" id="video-resource-title-help">Give this video resource a clear, descriptive title.</p>
+                </div>
+                <div class="field">
+                    <label for="video-resource-tags">Tags <span class="optional-label">Optional</span></label>
+                    <input id="video-resource-tags" name="tags" type="text" autocomplete="off" placeholder="lecture, oop, computer-science" aria-describedby="video-resource-tags-help" />
+                    <p class="form-helper" id="video-resource-tags-help">Separate tags with commas. Duplicates and empty tags are removed.</p>
+                </div>
+                <div class="field">
+                    <label for="video-resource-transcript-input">Transcript / Captions <span class="optional-label">Optional</span></label>
+                    <textarea id="video-resource-transcript-input" name="transcript" rows="6" placeholder="Paste timestamped transcript, SRT captions, or plain text notes..." aria-describedby="video-resource-transcript-help"></textarea>
+                    <p class="form-helper" id="video-resource-transcript-help">Browser security restricts direct YouTube caption scraping. You can paste the transcript now or add it later.</p>
+                </div>
+                <p class="form-error" data-video-resource-error role="alert" hidden></p>
+            </div>
+            <div class="modal-footer dialog-actions">
+                <button class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+                <button class="button button-primary" type="submit" data-video-resource-submit>Add video</button>
+            </div>
+        </form>
+    </dialog>
+    <dialog class="modal resource-dialog" id="paste-transcript-dialog" aria-labelledby="paste-transcript-title" aria-describedby="paste-transcript-description" data-dialog>
+        <form id="paste-transcript-form" novalidate>
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Video transcript</p>
+                    <h2 id="paste-transcript-title">Add / Edit transcript</h2>
+                </div>
+                <button class="icon-button" type="button" aria-label="Close transcript editor" data-dialog-close>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
+            <p id="paste-transcript-description" data-paste-transcript-description>Paste transcript or captions for <strong data-paste-transcript-resource-title>this video</strong>. Timestamps will be preserved for source tracing.</p>
+            <div class="form-stack">
+                <div class="field">
+                    <label for="paste-transcript-textarea">Transcript text</label>
+                    <textarea id="paste-transcript-textarea" name="transcript" rows="12" placeholder="00:00 Introduction...&#10;01:15 Key concept explanation..." required aria-describedby="paste-transcript-help"></textarea>
+                    <p class="form-helper" id="paste-transcript-help">Accepts YouTube transcript copy-paste, SRT / VTT subtitle files, or plain text.</p>
+                </div>
+                <p class="form-error" data-paste-transcript-error role="alert" hidden></p>
+            </div>
+            <div class="modal-footer dialog-actions">
+                <button class="button button-secondary" type="button" data-dialog-close>Cancel</button>
+                <button class="button button-primary" type="submit" data-paste-transcript-submit>Save & process transcript</button>
+            </div>
+        </form>
+    </dialog>
     <dialog class="modal resource-viewer-dialog" id="resource-viewer-dialog" aria-labelledby="resource-viewer-title" data-dialog>
         <div class="modal-header"><div><p class="eyebrow">Resource reader</p><h2 id="resource-viewer-title" data-resource-viewer-title>Resource</h2></div><button class="icon-button" type="button" aria-label="Close resource reader" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
         <div class="resource-viewer-body">
@@ -232,6 +299,11 @@
                 <h3 id="resource-viewer-file-heading">File information</h3>
                 <div class="file-info-card" data-resource-viewer-file-info></div>
                 <div class="file-image-preview" data-resource-viewer-image-preview hidden></div>
+            </section>
+            <section aria-labelledby="resource-viewer-video-heading" data-resource-viewer-video-section hidden>
+                <h3 id="resource-viewer-video-heading">Video information</h3>
+                <div class="file-info-card" data-resource-viewer-video-info></div>
+                <div class="video-preview-card" data-resource-viewer-video-preview hidden></div>
             </section>
             <section aria-labelledby="resource-viewer-content-heading"><h3 id="resource-viewer-content-heading">Content</h3><pre class="resource-content" data-resource-viewer-content></pre></section>
             <section class="resource-learning-outputs" aria-labelledby="resource-viewer-outputs-heading" data-resource-viewer-outputs-section>
@@ -243,7 +315,7 @@
                 <div class="resource-outputs-container" data-resource-viewer-outputs-container></div>
             </section>
         </div>
-        <div class="modal-footer dialog-actions"><button class="button button-primary" type="button" data-resource-viewer-extract-pdf hidden>Extract PDF content</button><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-add-note>Add note</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
+        <div class="modal-footer dialog-actions"><button class="button button-primary" type="button" data-resource-viewer-extract-pdf hidden>Extract PDF content</button><button class="button button-primary" type="button" data-resource-viewer-process-video hidden>Process transcript</button><button class="button button-secondary" type="button" data-resource-viewer-paste-transcript hidden>Paste transcript</button><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-add-note>Add note</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
     </dialog>
     <dialog class="modal confirm-dialog" id="delete-resource-dialog" aria-labelledby="delete-resource-title" aria-describedby="delete-resource-description" data-dialog>
         <div class="modal-header"><div><p class="eyebrow">Delete resource</p><h2 id="delete-resource-title">Delete this resource?</h2></div><button class="icon-button" type="button" aria-label="Close delete confirmation" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>

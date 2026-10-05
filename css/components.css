@@ -270,3 +270,14 @@
 .file-image-preview img { max-width: 100%; max-height: 18rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); object-fit: contain; }
 .file-pending-notice { margin-top: 0.5rem; padding: 0.65rem 0.85rem; border: 1px solid #fde68a; border-radius: var(--radius-sm); background: #fffbeb; color: #92400e; font-size: 0.8rem; }
 
+/* Day 21: YouTube Video Components */
+.video-preview-card { margin-top: 0.75rem; text-align: center; }
+.video-thumbnail-container { display: inline-block; position: relative; max-width: 100%; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--color-border); }
+.video-thumbnail-container img { display: block; max-width: 100%; max-height: 18rem; object-fit: cover; }
+.video-cors-notice { margin-top: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); background: #eff6ff; color: #1e40af; font-size: 0.825rem; line-height: 1.45; }
+.video-cors-notice p { margin: 0 0 0.4rem; }
+.video-cors-notice p:last-child { margin-bottom: 0; }
+.video-link-action { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--color-primary); font-weight: 600; text-decoration: none; font-size: 0.825rem; }
+.video-link-action:hover { text-decoration: underline; }
+
+

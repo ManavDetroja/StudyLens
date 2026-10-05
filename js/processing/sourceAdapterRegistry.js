@@ -10,6 +10,7 @@ import { ContentProcessingError } from './errors.js';
 import { textAdapter } from './textAdapter.js';
 import { pdfAdapter } from './pdfAdapter.js';
 import { imageAdapter } from './imageAdapter.js';
+import { videoAdapter } from './videoAdapter.js';
 
 function isPlainObject(value) {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -118,6 +119,7 @@ export class SourceAdapterRegistry {
         this.registerAdapter(textAdapter);
         this.registerAdapter(pdfAdapter);
         this.registerAdapter(imageAdapter);
+        this.registerAdapter(videoAdapter);
     }
 }
 
@@ -128,4 +130,5 @@ export const sourceAdapterRegistry = new SourceAdapterRegistry([
     textAdapter,
     pdfAdapter,
     imageAdapter,
+    videoAdapter,
 ]);

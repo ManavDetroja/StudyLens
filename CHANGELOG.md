@@ -1,6 +1,43 @@
 # Changelog
 
-## 0.20.0 — 2026-09-28
+## 0.21.0 — 2026-09-29
+
+- Implemented YouTube Video Learning Resources & Transcript Ingestion for StudyLens without external AI/LLMs (no Gemini, OpenAI, Claude, local models, or remote APIs), backend services, cloud storage, or fragile YouTube scraping hacks.
+- Built deterministic, security-safe YouTube URL validation layer (`js/features/youtubeUrlValidator.js`) using the native `URL` API and strict host whitelisting:
+  - Extracts canonical 11-character video IDs (`/^[a-zA-Z0-9_-]{11}$/`).
+  - Supports standard watch URLs (`youtube.com/watch?v=ID`), short URLs (`youtu.be/ID`), embed links (`youtube.com/embed/ID`), and shorts (`youtube.com/shorts/ID`).
+  - Safely handles query parameters, channels, timestamps, and domain case insensitivity while rejecting unsupported hosts, non-HTTP protocols, and malformed identifiers.
+  - Provided helper URL builders for canonical watch URLs, privacy-enhanced nocookie embed URLs, and public video thumbnail images.
+- Built deterministic Transcript Parser (`js/processing/transcriptParser.js`):
+  - Parses timestamps in `MM:SS` or `HH:MM:SS` formats into numeric seconds and structured segments (`{ index, text, timestamp, startSeconds, endSeconds }`).
+  - Converts raw SRT / VTT subtitle files and YouTube copy-pasted transcripts into structured segments while preserving clean paragraph text for downstream normalization.
+  - Retains timing metadata for source traceability and downstream chunking.
+- Implemented Transcript Acquisition Provider architecture (`js/processing/transcriptProvider.js`):
+  - Conforms to standard `TranscriptProvider` contract with honest client-side browser capability reporting.
+  - Distinguishes between successful transcript acquisition and explicit browser CORS unavailability (`TRANSCRIPT_UNAVAILABLE`) without scraping, fake transcripts, or fragile workarounds.
+  - Supports pluggable custom fetchers for extensibility and unit testing.
+- Built Video Source Adapter (`js/processing/videoAdapter.js`):
+  - Conforms strictly to the plain-object `SourceAdapter` contract (`id: 'video'`, `canHandle`, `extract`, `normalize`).
+  - Automatically registered in `sourceAdapterRegistry` alongside Text, PDF, and Image adapters.
+  - Extracts transcript content and returns structured segments and video metadata.
+  - Normalizes text deterministically via `normalizeTextContent`.
+- Created YouTube Resource Input & Management UI:
+  - Added `#video-resource-dialog` in `index.html` and `js/features/videoResourceForm.js` for importing YouTube video links with title derivation, tag validation, and optional initial transcript.
+  - Added `#paste-transcript-dialog` in `index.html` allowing learners to paste transcript text, captions, or lecture notes at any time for any video resource.
+  - Connected Quick Action "Add video" button on dashboard and wired event hooks.
+- Enhanced Resource Viewer (`js/features/resourceViewer.js`):
+  - Added dedicated video section displaying provider ("YouTube"), video ID, link to YouTube, and video thumbnail preview.
+  - Surfaces clear, honest CORS notice explaining why direct browser scraping is restricted and directing the user to the paste transcript fallback.
+  - Added "Process transcript" / "Reprocess transcript" and "Paste transcript" / "Edit transcript" actions.
+  - Auto-refreshes viewer dialog via `onResourcesChanged` when transcripts are updated or processed.
+- Downstream Feature Parity:
+  - Processed video transcripts flow seamlessly through the unified processing pipeline into `processedContentStore`.
+  - Enables Day 10 Learning Outputs (Summary, Key Concepts, Definitions, Questions), Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 linked Notes with authentic `sourceChunkIds` and source traceability.
+- Unit & Browser Verification:
+  - Added 21 comprehensive unit tests in `tests/youtubeVideoProcessing.test.mjs` (total 356 tests across suite, 355 passing in Node, 1 browser-only skipped; 100% pass rate).
+  - Verified full end-to-end browser execution in Headless Chrome via CDP across 10 verification steps (`scratch/verify_day21_browser.mjs`) with zero console errors.
+- Updated TypeScript definitions in `ts/types.ts` (`TranscriptSegment`, `ParsedTranscript`, `VideoResourceMetadata`).
+
 
 - Implemented Unified Content Processing Orchestrator for StudyLens without external AI/LLMs (no Gemini, OpenAI, Claude, local models, or remote APIs), backend services, or cloud storage.
 - Created `SourceAdapterRegistry` (`js/processing/sourceAdapterRegistry.js`) providing centralized registration, discovery, contract validation, and lifecycle management for multimodal source adapters (Text, PDF, Image).

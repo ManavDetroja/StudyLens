@@ -11,6 +11,7 @@ import { initAnalyticsPage } from './features/analyticsPage.js';
 import { initNotesPage } from './features/notesPage.js';
 import { initNoteEditor } from './features/noteEditor.js';
 import { initFileImportForm } from './features/fileImportForm.js';
+import { initVideoResourceForm } from './features/videoResourceForm.js';
 import { initializeApplicationStorage } from './features/storageStatus.js';
 
 async function initApp() {
@@ -18,6 +19,7 @@ async function initApp() {
     initNavigation();
     initResourceActions();
     initFileImportForm();
+    initVideoResourceForm();
     initResourceViewer();
     initFlashcardViewer();
     initQuizPlayer();

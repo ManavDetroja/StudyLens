@@ -10,6 +10,7 @@ import {
     createTextResourceUpdate,
 } from './textResourceInput.js';
 import { openFileImportForm } from './fileImportForm.js';
+import { openVideoResourceForm } from './videoResourceForm.js';
 
 const resourceMessages = {
     video: { title: 'Video import is planned', description: 'Adding video links is a future source-adapter feature. No video is being processed yet.' },
@@ -81,12 +82,20 @@ export function initResourceActions() {
                 openFileImportForm({ preselectedType: action });
                 return;
             }
+            if (action === 'video') {
+                openVideoResourceForm();
+                return;
+            }
             showModal(resourceMessages[action]);
         });
     });
 
     document.querySelectorAll('[data-open-text-resource]').forEach((button) => {
         button.addEventListener('click', () => openTextResourceForm());
+    });
+
+    document.querySelectorAll('[data-open-video-resource]').forEach((button) => {
+        button.addEventListener('click', () => openVideoResourceForm());
     });
 
     document.querySelectorAll('[data-open-file-import]').forEach((button) => {
