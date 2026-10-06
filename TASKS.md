@@ -158,10 +158,18 @@
 - [x] Add library card processing badges and direct card-level Retry buttons in `js/features/resourceList.js`.
 - [x] Add 18 comprehensive unit tests in `tests/processingQueue.test.mjs` (374 total tests, 373 passing in Node, 1 browser-only skipped; 100% pass rate).
 - [x] Verify full browser runtime execution in Headless Chrome via CDP across 7 verification checks (`scratch/verify_day22_browser.mjs`) with zero console errors.
+- [x] Implement Resource Metadata & Capabilities Service (`js/features/resourceMetadata.js`) providing multi-sensory presentation helpers (`getResourceTypePresentation`), human-friendly file/source formatting (`formatFileOrSourceSummary`), relative date context (`formatResourceDateContext`), and high-performance $O(N)$ batch capability counting (`getAllResourceCounts`).
+- [x] Enhance Library Search & Filtering (`js/algorithms/librarySearch.js`) to index metadata (original filename, video ID, source URL) and support live queue states (including `queued` and stalled-to-failed mapping) via `getEffectiveStatus`.
+- [x] Upgrade Library Resource Cards (`js/features/resourceList.js`) with multi-sensory type badges (SVG icons + tone colors), file/source metadata, learning capability summary pills (outputs, cards, quiz, notes), and contextual action buttons (Process, Open, Reprocess, Retry, Delete).
+- [x] Integrate centralized cascading delete (`openDeleteConfirmation`, `deleteResourceCascade`) shared between card actions and Resource Viewer.
+- [x] Enhance Resource Viewer (`js/features/resourceViewer.js` and `index.html`) with durable learning capabilities summary grid, PDF page counts, image dimensions, and wrapped responsive action footers.
+- [x] Add contextual empty states in Library for active filters (type, tag, status, search query) and format result count ("Showing X of Y resources").
+- [x] Add 7 comprehensive unit tests in `tests/resourceManagement.test.mjs` (381 total tests, 380 passing in Node, 1 browser-only skipped; 100% pass rate).
+- [x] Update TypeScript declarations in `ts/types.ts` (`ResourceTypePresentation`, `ResourceCapabilityCounts`, `LibraryFilterState`).
 
 ## Next
 
-- [ ] Implement spaced repetition review (Leitner / SM-2) or multi-resource study sets (Day 23+).
+- [ ] Implement spaced repetition review (Leitner / SM-2) or multi-resource study sets (Day 24+).
 
 ## Explicitly deferred
 

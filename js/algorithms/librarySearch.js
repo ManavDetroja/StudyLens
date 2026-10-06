@@ -14,10 +14,14 @@ function normalizeText(text) {
  * @param {object} resource
  * @returns {string}
  */
-function buildSearchableText(resource) {
+export function buildSearchableText(resource) {
     const parts = [
         resource.title ?? '',
         resource.content ?? '',
+        resource.source ?? '',
+        resource.metadata?.originalFileName ?? '',
+        resource.metadata?.videoId ?? '',
+        resource.metadata?.canonicalUrl ?? '',
         ...(Array.isArray(resource.tags) ? resource.tags : []),
     ];
     return normalizeText(parts.join(' '));
@@ -52,13 +56,24 @@ export function filterByType(resources, type) {
 
 /**
  * Filter resources by status. Returns all resources when status is 'all' or empty.
+ * Accepts an optional getEffectiveStatus resolver for live queue states.
+ *
  * @param {object[]} resources
  * @param {string} status
+ * @param {((resource: object) => string)|null} [getEffectiveStatus]
  * @returns {object[]}
  */
-export function filterByStatus(resources, status) {
+export function filterByStatus(resources, status, getEffectiveStatus = null) {
     if (!status || status === 'all') return resources;
-    return resources.filter((resource) => resource.status === status);
+    return resources.filter((resource) => {
+        const actualStatus = typeof getEffectiveStatus === 'function'
+            ? getEffectiveStatus(resource)
+            : resource.status;
+        if (status === 'failed') {
+            return actualStatus === 'failed' || actualStatus === 'stalled';
+        }
+        return actualStatus === status;
+    });
 }
 
 /**
@@ -127,13 +142,13 @@ export function sortResources(resources, sortKey) {
  * search → type filter → status filter → tag filter → sort.
  *
  * @param {object[]} resources
- * @param {{ query?: string, type?: string, status?: string, tag?: string, sort?: string }} filters
+ * @param {{ query?: string, type?: string, status?: string, tag?: string, sort?: string, getEffectiveStatus?: ((res: object) => string)|null }} filters
  * @returns {object[]}
  */
-export function applyLibraryFilters(resources, { query = '', type = 'all', status = 'all', tag = 'all', sort = 'recent' } = {}) {
+export function applyLibraryFilters(resources, { query = '', type = 'all', status = 'all', tag = 'all', sort = 'recent', getEffectiveStatus = null } = {}) {
     let result = searchResources(resources, query);
     result = filterByType(result, type);
-    result = filterByStatus(result, status);
+    result = filterByStatus(result, status, getEffectiveStatus);
     result = filterByTag(result, tag);
     result = sortResources(result, sort);
     return result;

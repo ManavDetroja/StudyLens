@@ -22,10 +22,13 @@
     .page-intro-with-action { align-items: flex-start; flex-direction: column; }
     .library-toolbar, .settings-grid { grid-template-columns: 1fr; }
     .flashcard-deck-list, .quiz-grid, .notes-grid { grid-template-columns: 1fr; }
-    .resource-card { grid-template-columns: 1fr; }
-    .resource-card .badge { justify-self: start; }
+    .resource-card-actions { width: 100%; justify-content: flex-start; }
     .modal-footer.dialog-actions { align-items: stretch; flex-direction: column-reverse; }
     .modal-footer.dialog-actions .button { width: 100%; }
+    .resource-viewer-dialog .modal-footer.dialog-actions,
+    .resource-viewer-actions { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.5rem 0.625rem; }
+    .modal-footer.resource-viewer-actions .button,
+    .resource-viewer-dialog .modal-footer.dialog-actions .button { width: auto; white-space: nowrap; }
 }
 @media (max-width: 479px) {
     h1 { font-size: 1.9rem; }
@@ -34,4 +37,12 @@
     .card-header { flex-direction: column; }
     .empty-state { padding-right: 0.5rem; padding-left: 0.5rem; }
     .modal-header, .modal > p, .modal-footer { padding-right: 1.15rem; padding-left: 1.15rem; }
+    .resource-viewer-body { padding-right: 1.15rem; padding-left: 1.15rem; }
+    .capability-summary-grid { grid-template-columns: 1fr; }
+    .resource-card-actions { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+    .resource-card-actions .button { width: 100%; text-align: center; }
+    .resource-viewer-dialog .modal-footer.dialog-actions,
+    .resource-viewer-actions { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+    .modal-footer.resource-viewer-actions .button,
+    .resource-viewer-dialog .modal-footer.dialog-actions .button { width: 100%; white-space: normal; text-align: center; }
 }

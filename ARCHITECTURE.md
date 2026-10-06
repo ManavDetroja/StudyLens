@@ -746,6 +746,41 @@ Reactive Events & UI Updates
   - `.processing-status-panel`: Contextual banner inside the Resource Viewer rendering friendly status messages, Retry button, and Cancel button.
   - Downstream Protection: Guards `generateLearningOutputsForResource`, `generateFlashcardsForResource`, `generateQuizForResource`, and "Extract & Process" against execution while a resource is in-flight or failed.
 
+## Resource Management Workspace Architecture (Day 23)
+
+Day 23 transforms the Library into a central resource management workspace for visibility, inspection, and lifecycle operations across all supported content types (Text, PDF, Image, Video).
+
+```
+User Action (Library / Resource Viewer)
+    ↓
+Resource Metadata & Capabilities Service (`js/features/resourceMetadata.js`)
+    - Multi-sensory type representation (Text, PDF, Image, Video)
+    - File & source formatting (original filenames, sizes, YouTube IDs)
+    - Relative date context (Created vs Updated)
+    - $O(N)$ Parallel capability count batch aggregation (`getAllResourceCounts`)
+    ↓
+Library Search & Filter Layer (`js/algorithms/librarySearch.js`)
+    - Search over title, content, tags, source, originalFileName, videoId, and canonicalUrl
+    - Live queue state filtering via `getEffectiveStatus` (including `queued` and `stalled` → `failed`)
+    - Contextual empty states and dynamic result counts ("Showing X of Y resources")
+    ↓
+Resource Cards (`js/features/resourceList.js`)
+    - Multi-sensory badge (SVG icon + label + tone class)
+    - Metadata row (Status, Date context, Source/File summary)
+    - Learning capability summary pills (outputs, flashcards, quiz, notes)
+    - Contextual action rows:
+      • Pending: [Process] [Open] [Delete]
+      • Queued / Processing: [View] [Delete]
+      • Completed: [Open] [Reprocess] [Delete]
+      • Failed / Stalled: [Retry] [Open] [Delete]
+    ↓
+Resource Viewer & Cascading Deletion (`js/features/resourceViewer.js`)
+    - Capabilities Overview grid with live counts and chunk stats
+    - Centralized cascading deletion (`openDeleteConfirmation`, `deleteResourceCascade`)
+    - Fully responsive actions with mobile touch stacking and zero horizontal overflow
+```
+
+
 
 
 

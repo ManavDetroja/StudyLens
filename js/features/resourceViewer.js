@@ -37,6 +37,7 @@ import {
     isProcessingBusy,
     getLiveProcessingJob,
 } from './processingService.js';
+import { getResourceCounts } from './resourceMetadata.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
@@ -89,7 +90,7 @@ export function renderResourceContent(contentElement, content, resourceType = 't
     }
 }
 
-function renderFileSection(resource, fileBlobRecord) {
+function renderFileSection(resource, fileBlobRecord, processed = null) {
     const fileSection = document.querySelector('[data-resource-viewer-file-section]');
     const fileInfoContainer = document.querySelector('[data-resource-viewer-file-info]');
     const imagePreviewContainer = document.querySelector('[data-resource-viewer-image-preview]');
@@ -136,6 +137,14 @@ function renderFileSection(resource, fileBlobRecord) {
             { label: 'MIME type', value: mimeType },
             { label: 'Status', value: statusText },
         ];
+
+        const pageCount = processed?.metadata?.pages?.length || resource.metadata?.pageCount;
+        if (resource.type === 'pdf' && pageCount) {
+            items.push({ label: 'Page count', value: `${pageCount} ${pageCount === 1 ? 'page' : 'pages'}` });
+        }
+        if (resource.type === 'image' && resource.metadata?.imageWidth && resource.metadata?.imageHeight) {
+            items.push({ label: 'Dimensions', value: `${resource.metadata.imageWidth} × ${resource.metadata.imageHeight} px` });
+        }
 
         items.forEach(({ label, value }) => {
             const dt = document.createElement('span');
@@ -321,7 +330,54 @@ function renderProcessingPanel(display) {
     }
 }
 
-function renderResource(resource, processed = null, outputsSummary = null, quiz = null, fileBlobRecord = null) {
+function renderCapabilitiesSummary(resource, counts, processed) {
+    const container = document.querySelector('[data-resource-viewer-capabilities]');
+    if (!container) return;
+
+    container.replaceChildren();
+
+    const isProcessed = Boolean(counts?.hasProcessedContent || resource.status === 'completed');
+
+    if (!isProcessed && (!counts || (counts.learningOutputsCount === 0 && counts.flashcardsCount === 0 && counts.quizzesCount === 0))) {
+        const hint = document.createElement('p');
+        hint.className = 'capability-unprocessed-note';
+        hint.textContent = 'Process this resource to unlock learning tools (summaries, key concepts, definitions, study questions, flashcards, and quizzes).';
+        container.append(hint);
+        return;
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'capability-summary-grid';
+
+    const items = [
+        { label: 'Learning outputs', count: counts?.learningOutputsCount ?? 0, unit: 'items' },
+        { label: 'Flashcards', count: counts?.flashcardsCount ?? 0, unit: 'cards' },
+        { label: 'Quizzes', count: counts?.quizzesCount ?? 0, unit: 'quiz' },
+        { label: 'Study notes', count: counts?.notesCount ?? 0, unit: 'notes' },
+        { label: 'Quiz attempts', count: counts?.attemptsCount ?? 0, unit: 'attempts' },
+        {
+            label: 'Processed content',
+            count: counts?.chunksCount ?? (processed?.chunks?.length ?? 0),
+            unit: 'chunks',
+            extra: processed?.metadata?.pages?.length ? `${processed.metadata.pages.length} pages` : (processed?.metadata?.segmentCount ? `${processed.metadata.segmentCount} segments` : ''),
+        },
+    ];
+
+    items.forEach(({ label, count, unit, extra }) => {
+        const card = document.createElement('div');
+        card.className = 'capability-stat-card';
+        const strong = document.createElement('strong');
+        strong.textContent = `${count} ${unit}`;
+        const span = document.createElement('span');
+        span.textContent = extra ? `${label} (${extra})` : label;
+        card.append(strong, span);
+        grid.append(card);
+    });
+
+    container.append(grid);
+}
+
+function renderResource(resource, processed = null, outputsSummary = null, quiz = null, fileBlobRecord = null, counts = null) {
     const display = getProcessingDisplay(resource, {
         job: getLiveProcessingJob(resource.id),
         hasProcessedContent: Boolean(processed?.normalizedText),
@@ -576,8 +632,9 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
         }
     }
 
-    renderFileSection(resource, fileBlobRecord);
+    renderFileSection(resource, fileBlobRecord, processed);
     renderVideoSection(resource, processed);
+    renderCapabilitiesSummary(resource, counts, processed);
     renderResourceContent(document.querySelector('[data-resource-viewer-content]'), resource.content, resource.type, processed);
     renderTags(resource.tags);
 }
@@ -617,8 +674,15 @@ export async function refreshResourceViewer(resourceId) {
         }
     }
 
-    renderResource(resource, processed, outputsSummary, quiz, fileBlobRecord);
-    return { resource, processed, outputsSummary, quiz, fileBlobRecord };
+    let counts = null;
+    try {
+        counts = await getResourceCounts(resourceId);
+    } catch {
+        // Enhancement
+    }
+
+    renderResource(resource, processed, outputsSummary, quiz, fileBlobRecord, counts);
+    return { resource, processed, outputsSummary, quiz, fileBlobRecord, counts };
 }
 
 export async function openResourceViewer(resourceId) {
@@ -692,6 +756,65 @@ async function requestQueuedProcessing(resource, { successMessage, reason = 'req
     } else if (job?.status === 'failed') {
         showToast(describeFailureToast(job, resourceType), { variant: 'error' });
     }
+}
+
+export function openDeleteConfirmation(resourceId) {
+    if (!resourceId) return;
+    pendingDeleteId = resourceId;
+    closeDialog(viewerDialog());
+    openDialog(deleteDialog());
+    document.querySelector('[data-delete-resource-confirm]')?.focus();
+}
+
+export async function deleteResourceCascade(resourceId) {
+    cancelProcessing(resourceId);
+    const deleted = await resourceRepository.deleteResource(resourceId);
+    if (!deleted) {
+        return false;
+    }
+
+    try {
+        await deleteProcessedContent(resourceId);
+    } catch (cleanupError) {
+        console.warn('StudyLens could not clean up processed content for deleted resource.', cleanupError);
+    }
+
+    try {
+        await learningOutputRepository.deleteLearningOutputsByResourceId(resourceId);
+    } catch (outputCleanupError) {
+        console.warn('StudyLens could not clean up learning outputs for deleted resource.', outputCleanupError);
+    }
+
+    try {
+        await deleteQuizzesForResource(resourceId);
+    } catch (quizCleanupError) {
+        console.warn('StudyLens could not clean up quizzes for deleted resource.', quizCleanupError);
+    }
+
+    try {
+        await deleteAttemptsForResource(resourceId);
+    } catch (attemptCleanupError) {
+        console.warn('StudyLens could not clean up quiz attempts for deleted resource.', attemptCleanupError);
+    }
+
+    try {
+        await deleteNotesForResource(resourceId);
+    } catch (noteCleanupError) {
+        console.warn('StudyLens could not clean up notes for deleted resource.', noteCleanupError);
+    }
+
+    try {
+        await deleteFileBlob(resourceId);
+    } catch (fileBlobCleanupError) {
+        console.warn('StudyLens could not clean up file blob for deleted resource.', fileBlobCleanupError);
+    }
+
+    revokeActiveBlobUrl();
+    notifyResourcesChanged({ action: 'deleted', resourceId });
+    if (activeResource && activeResource.id === resourceId) {
+        activeResource = null;
+    }
+    return true;
 }
 
 export function initResourceViewer() {
@@ -905,68 +1028,25 @@ export function initResourceViewer() {
 
     document.querySelector('[data-resource-viewer-delete]')?.addEventListener('click', () => {
         if (!activeResource) return;
-        pendingDeleteId = activeResource.id;
-        closeDialog(viewerDialog());
-        openDialog(deleteDialog());
-        document.querySelector('[data-delete-resource-confirm]')?.focus();
+        openDeleteConfirmation(activeResource.id);
     });
 
     document.querySelector('[data-delete-resource-confirm]')?.addEventListener('click', async () => {
         if (!pendingDeleteId) return;
 
+        const targetId = pendingDeleteId;
         const confirmButton = document.querySelector('[data-delete-resource-confirm]');
         confirmButton.disabled = true;
         confirmButton.textContent = 'Deleting…';
 
         try {
-            cancelProcessing(pendingDeleteId);
-            const deleted = await resourceRepository.deleteResource(pendingDeleteId);
+            const deleted = await deleteResourceCascade(targetId);
             closeDialog(deleteDialog());
             if (!deleted) {
                 showToast('This resource is no longer available.', { variant: 'error' });
                 return;
             }
-
-            try {
-                await deleteProcessedContent(pendingDeleteId);
-            } catch (cleanupError) {
-                console.warn('StudyLens could not clean up processed content for deleted resource.', cleanupError);
-            }
-
-            try {
-                await learningOutputRepository.deleteLearningOutputsByResourceId(pendingDeleteId);
-            } catch (outputCleanupError) {
-                console.warn('StudyLens could not clean up learning outputs for deleted resource.', outputCleanupError);
-            }
-
-            try {
-                await deleteQuizzesForResource(pendingDeleteId);
-            } catch (quizCleanupError) {
-                console.warn('StudyLens could not clean up quizzes for deleted resource.', quizCleanupError);
-            }
-
-            try {
-                await deleteAttemptsForResource(pendingDeleteId);
-            } catch (attemptCleanupError) {
-                console.warn('StudyLens could not clean up quiz attempts for deleted resource.', attemptCleanupError);
-            }
-
-            try {
-                await deleteNotesForResource(pendingDeleteId);
-            } catch (noteCleanupError) {
-                console.warn('StudyLens could not clean up notes for deleted resource.', noteCleanupError);
-            }
-
-            try {
-                await deleteFileBlob(pendingDeleteId);
-            } catch (fileBlobCleanupError) {
-                console.warn('StudyLens could not clean up file blob for deleted resource.', fileBlobCleanupError);
-            }
-
-            revokeActiveBlobUrl();
-            notifyResourcesChanged({ action: 'deleted', resourceId: pendingDeleteId });
             showToast('Resource deleted.');
-            activeResource = null;
             pendingDeleteId = null;
         } catch (error) {
             console.error('StudyLens could not delete the resource.', error);
@@ -975,6 +1055,10 @@ export function initResourceViewer() {
             confirmButton.disabled = false;
             confirmButton.textContent = 'Delete resource';
         }
+    });
+
+    deleteDialog()?.addEventListener('close', () => {
+        pendingDeleteId = null;
     });
 
     viewerDialog()?.addEventListener('close', () => {

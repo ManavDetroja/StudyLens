@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.23.0 — 2026-10-06
+
+- Implemented the StudyLens Resource Management Workspace (Day 23), transforming the Library into a central, high-visibility workspace for managing multimodal learning resources.
+- Built Resource Metadata & Presentation Service (`js/features/resourceMetadata.js`):
+  - Pure visual presentation helper `getResourceTypePresentation(type)` returning accessible labels, tone classes (`tone-blue`, `tone-rose`, `tone-amber`, `tone-violet`), and lightweight SVG icons for Text, PDF, Image, and Video.
+  - Human-friendly source summary helper `formatFileOrSourceSummary(resource)` displaying original filenames with sizes (e.g. `lecture.pdf (1.2 MB)`), YouTube video IDs (e.g. `YouTube · dQw4w9WgXcQ`), or text indicators.
+  - Date context helper `formatResourceDateContext(createdAt, updatedAt)` distinguishing updated resources from created resources.
+  - High-performance, single-pass batch count aggregation `getAllResourceCounts(resources)` reading 4 IndexedDB stores in parallel without duplicate queries or manual counter tables.
+- Enhanced Library Search & Filtering (`js/algorithms/librarySearch.js`):
+  - Expanded searchable text indexing to include source URLs, original filenames from file imports, and YouTube video IDs.
+  - Added live queue state support to `filterByStatus` via an optional `getEffectiveStatus` resolver, enabling filtering by `queued` and unified `failed` states.
+  - Added `queued` option to Library status filter in `index.html`.
+- Upgraded Library Resource Cards (`js/features/resourceList.js`):
+  - Multi-sensory type presentation with SVG icon, capitalized label, and tone badge.
+  - Metadata row showing live processing status badge, date context, and file/source summary.
+  - Learning material capabilities summary pills (outputs, flashcards, quiz, notes) or unprocessed guidance notes.
+  - Contextual action rows on cards:
+    - Pending: `[Process]` `[Open]` `[Delete]`
+    - Queued / Processing: `[View]` `[Delete]`
+    - Completed: `[Open]` `[Reprocess]` `[Delete]`
+    - Failed / Stalled: `[Retry]` `[Open]` `[Delete]`
+  - Unified cascading deletion via `openDeleteConfirmation(id)` and `deleteResourceCascade(id)` shared between card actions and Resource Viewer.
+  - Dynamic result count formatting ("Showing X of Y resources" when filtered).
+  - Contextual empty states for narrowing filters (type, tag, status, search query).
+- Enhanced Resource Viewer (`js/features/resourceViewer.js` and `index.html`):
+  - Added durable Capabilities Overview grid displaying counts for learning outputs, flashcards, quizzes, notes, quiz attempts, and processed chunks.
+  - Added PDF page counts and image dimensions to the file metadata display.
+- Responsive Layout & Mobile Protection (`css/components.css`, `css/responsive.css`):
+  - Added flex wrapping, stacked actions on mobile screens, and zero horizontal page/modal overflow.
+- Added 7 comprehensive unit tests in `tests/resourceManagement.test.mjs` (381 tests total, 380 passing in Node, 1 browser-only skipped; 100% pass rate).
+
 ## 0.22.0 — 2026-10-06
 
 - Implemented a resilient, pure browser-local Processing Queue, Retry, and Recovery system for StudyLens without backend services, cloud queues (no Redis, RabbitMQ, Celery, or server workers), or external AI/LLMs.

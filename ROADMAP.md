@@ -24,7 +24,8 @@
 - Day 20: Unified Multimodal Content Processing Orchestrator: centralized `SourceAdapterRegistry`, `imageAdapter`, decoupled pipeline, in-memory concurrency locks, rollback failure preservation, and downstream feature parity. Complete.
 - Day 21: YouTube Video Learning Resources & Transcript Ingestion: deterministic YouTube URL validation (`youtubeUrlValidator.js`), pure client-side timestamp/transcript parser (`transcriptParser.js`), honest browser CORS capability reporting (`transcriptProvider.js`), Video Source Adapter (`videoAdapter` in `sourceAdapterRegistry`), YouTube input dialog (`#video-resource-dialog`), manual transcript paste modal (`#paste-transcript-dialog`), Resource Viewer video preview & controls, and full downstream feature parity (Outputs, Flashcards, Quizzes, Notes) with verified source chunk traceability. Complete.
 - Day 22: Local Content Processing Queue, Retry, and Recovery System: in-memory browser-local FIFO queue manager (`processingQueue.js`), bounded concurrency (`maxConcurrent = 1`), same-resource deduplication, waiting job cancellation, error classification policy (permanent vs retryable), atomic chunk persistence preserving valid content, mid-flight source fingerprint checks, stale processing recovery (> 60s), and UI integration (global `#processing-indicator`, Resource Viewer status panel, card badges & retry, downstream generation guards). Complete.
-- Next: Day 23 — Spaced repetition review (Leitner / SM-2) or multi-resource study sets.
+- Day 23: Resource Management Workspace: central place for library visibility and control. Multi-sensory type presentation (icon + label + tone for text, PDF, image, video), processing state badges & live queue status visibility, contextual card actions (Process, Open, Reprocess, Retry, Delete), learning material capability summaries on cards and Resource Viewer, enhanced search over metadata (source URL, filename, video ID), live status filter (including queued), contextual empty states, and responsive touch-friendly cards. Complete.
+- Next: Day 24 — Spaced repetition review (Leitner / SM-2) or multi-resource study sets.
 
 ## V2 — Content processing
 
@@ -36,7 +37,7 @@
 - Spaced repetition review and knowledge retention tracking.
 - Advanced analytics, spaced repetition algorithms, and knowledge-graph capabilities.
 
-Only the Day 17–22 text-, PDF-, image-, and video-processing unified pipeline, local resilient processing queue, local file import foundation, persistent storage (StudyLensDB v8), deterministic source-grounded learning output engine, structured reader UI, flashcards study system with grounded card backs, interactive quiz player with grounded MCQs, persistent quiz attempt results & basic analytics, and persistent notes workspace are implemented now. Additional V2 and all V3 items are plans, not active features.
+Only the Day 17–23 text-, PDF-, image-, and video-processing unified pipeline, local resilient processing queue, resource management workspace, local file import foundation, persistent storage (StudyLensDB v8), deterministic source-grounded learning output engine, structured reader UI, flashcards study system with grounded card backs, interactive quiz player with grounded MCQs, persistent quiz attempt results & basic analytics, and persistent notes workspace are implemented now. Additional V2 and all V3 items are plans, not active features.
 
 
 

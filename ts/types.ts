@@ -377,3 +377,30 @@ export interface ProcessingDisplay {
     hasContent: boolean;
 }
 
+/** Visual presentation attributes for a resource type (Day 23). */
+export interface ResourceTypePresentation {
+    label: string;
+    toneClass: string;
+    iconSvg: string;
+}
+
+/** Aggregated capability counts for a resource in the workspace (Day 23). */
+export interface ResourceCapabilityCounts {
+    learningOutputsCount: number;
+    flashcardsCount: number;
+    quizzesCount: number;
+    attemptsCount: number;
+    notesCount: number;
+    chunksCount: number;
+    hasProcessedContent: boolean;
+}
+
+/** Library filter criteria (Day 23). */
+export interface LibraryFilterState {
+    query: string;
+    type: string;
+    status: string;
+    tag: string;
+    sort: string;
+}
+

@@ -2,29 +2,59 @@ import { onResourcesChanged, onProcessingChanged } from '../core/resourceEvents.
 import { resourceRepository } from '../storage/resourceStore.js';
 import { showToast } from '../ui/toast.js';
 import { refreshDashboardResourceCount } from './storageStatus.js';
-import { formatResourceDate, openResourceViewer } from './resourceViewer.js';
+import { openResourceViewer, openDeleteConfirmation } from './resourceViewer.js';
 import { applyLibraryFilters, isFiltered } from '../algorithms/librarySearch.js';
 import { collectAllTags } from '../utils/tagUtils.js';
 import { getProcessingDisplay } from '../processing/processingDisplay.js';
-import { getLiveProcessingJob, retryProcessing } from './processingService.js';
+import { getLiveProcessingJob, retryProcessing, requestProcessing } from './processingService.js';
+import {
+    getResourceTypePresentation,
+    formatFileOrSourceSummary,
+    formatResourceDateContext,
+    getAllResourceCounts,
+} from './resourceMetadata.js';
 
-/* ── Cached resource list ────────────────────────────────────────── */
+/* ── Cached resource list and capability counts ──────────────────── */
 
 let allResources = [];
+let allCounts = new Map();
 
-/* ── Card rendering ──────────────────────────────────────────────── */
+/* ── Card rendering helpers ───────────────────────────────────────── */
+
+function createTypeBadge(resource) {
+    const { label, toneClass, iconSvg } = getResourceTypePresentation(resource.type);
+    const badge = document.createElement('span');
+    badge.className = `badge resource-type ${toneClass}`;
+    badge.innerHTML = `${iconSvg}<span></span>`;
+    badge.querySelector('span').textContent = label;
+    return badge;
+}
 
 function createMetadata(resource) {
     const display = getProcessingDisplay(resource, { job: getLiveProcessingJob(resource.id) });
     const metadata = document.createElement('div');
     metadata.className = 'resource-card-meta';
-    const date = document.createElement('span');
-    date.textContent = formatResourceDate(resource.createdAt);
+
     const status = document.createElement('span');
     status.className = 'resource-status';
     status.dataset.status = display.state;
     status.textContent = display.label;
-    metadata.append(date, status);
+
+    const date = document.createElement('span');
+    date.className = 'resource-date';
+    date.textContent = formatResourceDateContext(resource.createdAt, resource.updatedAt);
+
+    metadata.append(status, date);
+
+    const sourceSummary = formatFileOrSourceSummary(resource);
+    if (sourceSummary) {
+        const sourceSpan = document.createElement('span');
+        sourceSpan.className = 'resource-meta-source';
+        sourceSpan.textContent = sourceSummary;
+        sourceSpan.title = sourceSummary;
+        metadata.append(sourceSpan);
+    }
+
     return metadata;
 }
 
@@ -40,14 +70,6 @@ function createProcessingNotice(resource) {
     message.textContent = display.detail;
     notice.append(message);
 
-    if (display.canRetry) {
-        const retry = document.createElement('button');
-        retry.type = 'button';
-        retry.className = 'button button-secondary button-small';
-        retry.dataset.resourceRetry = resource.id;
-        retry.textContent = 'Retry';
-        notice.append(retry);
-    }
     return notice;
 }
 
@@ -63,9 +85,162 @@ function createTags(tags) {
     return tagList;
 }
 
-export function createResourceCard(resource, { compact = false } = {}) {
+function createCapabilitiesSection(resource, counts) {
+    const section = document.createElement('div');
+    section.className = 'resource-card-capabilities';
+
+    const hasAnyOutputs = counts && (
+        counts.learningOutputsCount > 0 ||
+        counts.flashcardsCount > 0 ||
+        counts.quizzesCount > 0 ||
+        counts.notesCount > 0
+    );
+
+    if (hasAnyOutputs) {
+        const pills = [];
+        if (counts.learningOutputsCount > 0) {
+            pills.push({ label: `${counts.learningOutputsCount} ${counts.learningOutputsCount === 1 ? 'output' : 'outputs'}`, type: 'outputs' });
+        }
+        if (counts.flashcardsCount > 0) {
+            pills.push({ label: `${counts.flashcardsCount} ${counts.flashcardsCount === 1 ? 'card' : 'cards'}`, type: 'flashcards' });
+        }
+        if (counts.quizzesCount > 0) {
+            pills.push({ label: `${counts.quizzesCount} ${counts.quizzesCount === 1 ? 'quiz' : 'quizzes'}`, type: 'quiz' });
+        }
+        if (counts.notesCount > 0) {
+            pills.push({ label: `${counts.notesCount} ${counts.notesCount === 1 ? 'note' : 'notes'}`, type: 'notes' });
+        }
+
+        pills.forEach(({ label, type }) => {
+            const pill = document.createElement('span');
+            pill.className = `capability-pill capability-${type}`;
+            pill.textContent = label;
+            section.append(pill);
+        });
+        return section;
+    }
+
+    const hint = document.createElement('span');
+    hint.className = 'capability-pending-hint';
+    if (resource.status === 'completed') {
+        hint.textContent = 'Processed • Ready to generate study aids';
+    } else if (resource.type === 'video') {
+        const hasContent = typeof resource.content === 'string' && resource.content.trim().length > 0;
+        hint.textContent = hasContent ? 'Transcript added • Ready to process' : 'No transcript • Paste transcript to generate study aids';
+    } else {
+        hint.textContent = 'Unprocessed • Process to unlock study aids';
+    }
+    section.append(hint);
+    return section;
+}
+
+function createCardActions(resource) {
+    const display = getProcessingDisplay(resource, { job: getLiveProcessingJob(resource.id) });
+    const actions = document.createElement('div');
+    actions.className = 'resource-card-actions';
+
+    if (display.state === 'queued' || display.state === 'processing') {
+        const viewBtn = document.createElement('button');
+        viewBtn.type = 'button';
+        viewBtn.className = 'button button-secondary button-small';
+        viewBtn.dataset.resourceOpen = resource.id;
+        viewBtn.textContent = 'View';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'button button-ghost button-small button-danger';
+        deleteBtn.dataset.resourceDelete = resource.id;
+        deleteBtn.textContent = 'Delete';
+
+        actions.append(viewBtn, deleteBtn);
+        return actions;
+    }
+
+    if (display.state === 'failed' || display.state === 'stalled') {
+        if (display.canRetry) {
+            const retryBtn = document.createElement('button');
+            retryBtn.type = 'button';
+            retryBtn.className = 'button button-secondary button-small';
+            retryBtn.dataset.resourceRetry = resource.id;
+            retryBtn.textContent = 'Retry';
+            actions.append(retryBtn);
+        }
+
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'button button-secondary button-small';
+        openBtn.dataset.resourceOpen = resource.id;
+        openBtn.textContent = 'Open';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'button button-ghost button-small button-danger';
+        deleteBtn.dataset.resourceDelete = resource.id;
+        deleteBtn.textContent = 'Delete';
+
+        actions.append(openBtn, deleteBtn);
+        return actions;
+    }
+
+    if (resource.status === 'completed') {
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'button button-primary button-small';
+        openBtn.dataset.resourceOpen = resource.id;
+        openBtn.textContent = 'Open';
+
+        const reprocessBtn = document.createElement('button');
+        reprocessBtn.type = 'button';
+        reprocessBtn.className = 'button button-secondary button-small';
+        reprocessBtn.dataset.resourceReprocess = resource.id;
+        reprocessBtn.textContent = 'Reprocess';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'button button-ghost button-small button-danger';
+        deleteBtn.dataset.resourceDelete = resource.id;
+        deleteBtn.textContent = 'Delete';
+
+        actions.append(openBtn, reprocessBtn, deleteBtn);
+        return actions;
+    }
+
+    // Pending / Unprocessed
+    const processBtn = document.createElement('button');
+    processBtn.type = 'button';
+    processBtn.className = 'button button-primary button-small';
+    processBtn.dataset.resourceProcess = resource.id;
+    processBtn.textContent = 'Process';
+
+    if (resource.type === 'video' && (!resource.content || !resource.content.trim())) {
+        processBtn.disabled = true;
+        processBtn.title = 'Paste transcript first before processing';
+    }
+
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'button button-secondary button-small';
+    openBtn.dataset.resourceOpen = resource.id;
+    openBtn.textContent = 'Open';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'button button-ghost button-small button-danger';
+    deleteBtn.dataset.resourceDelete = resource.id;
+    deleteBtn.textContent = 'Delete';
+
+    actions.append(processBtn, openBtn, deleteBtn);
+    return actions;
+}
+
+export function createResourceCard(resource, { compact = false, counts = null } = {}) {
     const card = document.createElement('article');
     card.className = compact ? 'resource-card resource-card-compact' : 'resource-card';
+    card.dataset.resourceId = resource.id;
+
+    const header = document.createElement('div');
+    header.className = 'resource-card-header';
+
     const heading = document.createElement(compact ? 'h3' : 'h2');
     const openButton = document.createElement('button');
     openButton.type = 'button';
@@ -74,17 +249,28 @@ export function createResourceCard(resource, { compact = false } = {}) {
     openButton.textContent = resource.title;
     heading.append(openButton);
 
-    const type = document.createElement('span');
-    type.className = 'badge resource-type';
-    type.textContent = resource.type;
-    card.append(heading, type, createMetadata(resource));
+    const typeBadge = createTypeBadge(resource);
+    header.append(heading, typeBadge);
+
+    card.append(header, createMetadata(resource));
+
     const notice = createProcessingNotice(resource);
     if (notice) card.append(notice);
-    if (resource.tags.length) card.append(createTags(resource.tags));
+
+    if (resource.tags && resource.tags.length) {
+        card.append(createTags(resource.tags));
+    }
+
+    if (!compact) {
+        const itemCounts = counts || allCounts.get(resource.id) || null;
+        card.append(createCapabilitiesSection(resource, itemCounts));
+        card.append(createCardActions(resource));
+    }
+
     return card;
 }
 
-/* ── Dashboard rendering (unchanged from Day 4) ─────────────────── */
+/* ── Dashboard rendering ─────────────────────────────────────────── */
 
 function renderResourceCollection({ listSelector, emptySelector, resources, compact = false }) {
     const list = document.querySelector(listSelector);
@@ -154,6 +340,49 @@ function populateTagFilter(resources) {
 
 /* ── Library rendering ───────────────────────────────────────────── */
 
+function updateNoResultsMessage(noResultsEl, filters) {
+    const h2 = noResultsEl.querySelector('h2');
+    const p = noResultsEl.querySelector('p');
+    if (!h2 || !p) return;
+
+    if (filters.query && filters.query.trim()) {
+        h2.textContent = 'No matching resources';
+        p.textContent = `No resources match "${filters.query.trim()}". Try checking for spelling errors or clear filters.`;
+        return;
+    }
+
+    if (filters.type !== 'all' && filters.status === 'all' && filters.tag === 'all') {
+        const typeNames = { pdf: 'PDF', image: 'Image', video: 'Video', text: 'Text' };
+        const label = typeNames[filters.type] || filters.type;
+        h2.textContent = `No ${label} resources yet`;
+        p.textContent = `You haven't added any ${label} resources to your library yet.`;
+        return;
+    }
+
+    if (filters.status !== 'all' && filters.type === 'all' && filters.tag === 'all') {
+        const statusLabels = {
+            pending: 'pending',
+            queued: 'queued',
+            processing: 'currently processing',
+            completed: 'completed',
+            failed: 'failed',
+        };
+        const label = statusLabels[filters.status] || filters.status;
+        h2.textContent = `No ${filters.status} resources`;
+        p.textContent = `There are no resources currently ${label}.`;
+        return;
+    }
+
+    if (filters.tag !== 'all' && filters.type === 'all' && filters.status === 'all') {
+        h2.textContent = `No resources with tag "${filters.tag}"`;
+        p.textContent = `There are no resources matching the selected tag.`;
+        return;
+    }
+
+    h2.textContent = 'No matching resources';
+    p.textContent = 'Try adjusting your search or filters to find what you are looking for.';
+}
+
 function renderLibraryResultCount(filteredCount, totalCount, filtered) {
     const statusBar = document.querySelector('[data-library-status-bar]');
     const countElement = document.querySelector('[data-library-result-count]');
@@ -167,13 +396,11 @@ function renderLibraryResultCount(filteredCount, totalCount, filtered) {
     statusBar.hidden = false;
 
     if (filtered) {
-        countElement.textContent = filteredCount === 1
-            ? '1 result'
-            : filteredCount + ' results';
+        countElement.textContent = `Showing ${filteredCount} of ${totalCount} resource${totalCount === 1 ? '' : 's'}`;
     } else {
         countElement.textContent = totalCount === 1
             ? '1 resource'
-            : totalCount + ' resources';
+            : `${totalCount} resources`;
     }
 
     /* Show the clear button only when a narrowing filter is active */
@@ -184,7 +411,11 @@ function renderLibraryResultCount(filteredCount, totalCount, filtered) {
 
 function renderLibrary() {
     const filters = getLibraryFilters();
-    const filtered = applyLibraryFilters(allResources, filters);
+    const getEffectiveStatus = (res) => {
+        const job = getLiveProcessingJob(res.id);
+        return getProcessingDisplay(res, { job }).state;
+    };
+    const filtered = applyLibraryFilters(allResources, filters, getEffectiveStatus);
     const hasResources = allResources.length > 0;
     const hasResults = filtered.length > 0;
     const activeFilter = isFiltered(filters);
@@ -202,7 +433,10 @@ function renderLibrary() {
     } else if (!hasResults) {
         /* Resources exist but filters match nothing */
         if (emptyState) emptyState.hidden = true;
-        if (noResults) noResults.hidden = false;
+        if (noResults) {
+            updateNoResultsMessage(noResults, filters);
+            noResults.hidden = false;
+        }
         if (list) list.hidden = true;
         renderLibraryResultCount(0, allResources.length, true);
     } else {
@@ -210,10 +444,51 @@ function renderLibrary() {
         if (emptyState) emptyState.hidden = true;
         if (noResults) noResults.hidden = true;
         if (list) {
-            list.replaceChildren(...filtered.map((resource) => createResourceCard(resource)));
+            list.replaceChildren(...filtered.map((resource) => createResourceCard(resource, { counts: allCounts.get(resource.id) })));
             list.hidden = false;
         }
         renderLibraryResultCount(filtered.length, allResources.length, activeFilter);
+    }
+}
+
+/* ── Processing action handling ──────────────────────────────────── */
+
+async function handleProcessingAction(resourceId, actionType) {
+    try {
+        let request;
+        if (actionType === 'retry') {
+            request = await retryProcessing(resourceId);
+            if (!request.accepted && !request.deduplicated) {
+                if (request.reason === 'RETRY_LIMIT_REACHED') {
+                    showToast('Retry limit reached for this resource.', { variant: 'error' });
+                } else if (request.reason === 'NON_RETRYABLE') {
+                    showToast('This failure cannot be fixed by retrying.', { variant: 'error' });
+                } else {
+                    showToast('This resource cannot be retried right now.', { variant: 'error' });
+                }
+                return;
+            }
+        } else {
+            request = await requestProcessing(resourceId, {
+                reason: actionType === 'reprocess' ? 'reprocess' : 'requested',
+            });
+        }
+
+        if (request.deduplicated) {
+            showToast('This resource is already queued or being processed.');
+            return;
+        }
+
+        showToast(actionType === 'reprocess' ? 'Reprocessing queued…' : 'Processing queued…');
+        const job = await request.completion;
+        if (job?.status === 'completed') {
+            showToast('Processing completed successfully.');
+        } else if (job?.status === 'failed') {
+            showToast(`Processing failed: ${job.errorMessage || 'Please try again.'}`, { variant: 'error' });
+        }
+    } catch (error) {
+        console.error('StudyLens could not process resource.', error);
+        showToast('StudyLens could not start processing. Please try again.', { variant: 'error' });
     }
 }
 
@@ -221,22 +496,37 @@ function renderLibrary() {
 
 function bindResourceSelection(selector) {
     document.querySelector(selector)?.addEventListener('click', (event) => {
+        const deleteButton = event.target.closest('[data-resource-delete]');
+        if (deleteButton) {
+            openDeleteConfirmation(deleteButton.dataset.resourceDelete);
+            return;
+        }
+
         const retryButton = event.target.closest('[data-resource-retry]');
         if (retryButton) {
             retryButton.disabled = true;
-            void retryProcessing(retryButton.dataset.resourceRetry).then((result) => {
-                if (result && !result.accepted && !result.deduplicated) {
-                    showToast('This resource cannot be retried right now.', { variant: 'error' });
-                }
-            }).catch((error) => {
-                console.error('StudyLens could not retry processing.', error);
-                showToast('StudyLens could not retry processing. Please try again.', { variant: 'error' });
-            });
+            void handleProcessingAction(retryButton.dataset.resourceRetry, 'retry');
+            return;
+        }
+
+        const processButton = event.target.closest('[data-resource-process]');
+        if (processButton) {
+            processButton.disabled = true;
+            void handleProcessingAction(processButton.dataset.resourceProcess, 'process');
+            return;
+        }
+
+        const reprocessButton = event.target.closest('[data-resource-reprocess]');
+        if (reprocessButton) {
+            reprocessButton.disabled = true;
+            void handleProcessingAction(reprocessButton.dataset.resourceReprocess, 'reprocess');
             return;
         }
 
         const openButton = event.target.closest('[data-resource-open]');
-        if (openButton) void openResourceViewer(openButton.dataset.resourceOpen);
+        if (openButton) {
+            void openResourceViewer(openButton.dataset.resourceOpen);
+        }
     });
 }
 
@@ -276,6 +566,13 @@ function bindLibraryControls() {
 export async function refreshResourceDisplays() {
     try {
         allResources = await resourceRepository.getAllResources();
+
+        try {
+            allCounts = await getAllResourceCounts(allResources);
+        } catch (countsErr) {
+            console.warn('StudyLens could not batch load capability counts.', countsErr);
+            allCounts = new Map();
+        }
 
         /* Dashboard — always shows 3 most recent, unfiltered */
         renderResourceCollection({
