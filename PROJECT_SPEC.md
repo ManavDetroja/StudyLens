@@ -183,5 +183,16 @@ Day 21 introduces YouTube video learning materials and pure client-side transcri
 - **Resource Viewer Integration**: Displays YouTube video details, canonical link, thumbnail preview, CORS notice, and "Process transcript" / "Paste transcript" actions.
 - **Downstream Feature Parity**: Processed video transcripts flow seamlessly into Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 Notes with authentic `sourceChunkIds`.
 
+## Local content processing queue, retry, and recovery system (Day 22)
+
+Day 22 introduces a resilient, in-memory browser-local FIFO processing queue, bounded retry mechanism, stale processing recovery, and data-safe persistence layer for multimodal content processing (Text, PDF, Image, Video) without backend services, server-side queues (no Redis, RabbitMQ, Celery), or external AI/LLMs:
+- **Local FIFO Queue Manager**: `js/processing/processingQueue.js` orchestrates job lifecycles (`queued` → `started` → `completed` | `failed` | `cancelled`), limits concurrency to 1 to preserve browser responsiveness, deduplicates concurrent requests, supports re-runs on source modification, and cancels waiting jobs.
+- **Pure Error Policy**: `js/processing/processingErrorPolicy.js` categorizes errors into permanent (non-retryable) vs transient (retryable) with human-friendly, stack-free error messages and recovery advice.
+- **Pure Display State**: `js/processing/processingDisplay.js` derives unified UI states (`completed`, `processing`, `queued`, `failed`, `stalled`, `idle`) across in-memory jobs and persisted resources.
+- **Processing Service Bridge**: `js/features/processingService.js` coordinates `requestProcessing`, `retryProcessing`, `cancelProcessing`, `assertNotProcessing`, and dispatches reactive events via `notifyProcessingChanged`.
+- **Stale Processing Recovery**: Automatically sweeps interrupted resources left in `processing` status by closed tabs or crashes (> 60s) into `failed` with retry enabled.
+- **Data-Safe Atomic Persistence**: `js/features/processingIntegration.js` preserves previously valid chunks on reprocessing failure, verifies baseline source fingerprints to avoid mid-flight race conditions, and guards against orphan records on deleted resources.
+- **UI Integration & Downstream Guard**: Global `#processing-indicator`, Resource Viewer status panel with Retry/Cancel controls, library card status badges and card-level retry, and strict downstream generation blocking during active processing.
+
 
 

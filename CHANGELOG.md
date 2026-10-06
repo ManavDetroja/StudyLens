@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.22.0 — 2026-10-06
+
+- Implemented a resilient, pure browser-local Processing Queue, Retry, and Recovery system for StudyLens without backend services, cloud queues (no Redis, RabbitMQ, Celery, or server workers), or external AI/LLMs.
+- Built browser-local FIFO Queue Manager (`js/processing/processingQueue.js`):
+  - In-memory job state lifecycle (`queued` → `started` → `completed`, `failed`, or `cancelled`).
+  - Bounded concurrency with default `maxConcurrent = 1` to preserve main thread responsiveness and avoid duplicate parser/worker allocation during heavy PDF extraction and OCR.
+  - Per-resource de-duplication: concurrent triggers for the same resource coalesce cleanly into the single active/pending job.
+  - Re-run on source change: queuing with reason `source-changed` schedules a fresh processing run once the current flight completes.
+  - Cancellation of waiting jobs: queued jobs waiting behind an active job can be cleanly cancelled without side effects.
+  - Architectural honesty on cancellation boundaries: actively executing worker jobs (PDF parsing / OCR) lack safe browser abort primitives; active cancellation attempts are safely rejected with `ACTIVE_CANCEL_UNSUPPORTED`.
+- Implemented pure Error Classification & User Messaging Policy (`js/processing/processingErrorPolicy.js`):
+  - Categorizes all failure codes into permanent (`UNSUPPORTED_SOURCE`, `UNSUPPORTED_RESOURCE_TYPE`, `TRANSCRIPT_UNAVAILABLE`, `INVALID_PDF`, `INVALID_IMAGE`, `FILE_EMPTY`, `RETRY_LIMIT_REACHED`) versus transient/retryable (`NETWORK_TIMEOUT`, `STORAGE_ERROR`, `PROCESSING_INTERRUPTED`, `STORAGE_RETRIEVAL_FAILED`, `EXTRACTION_FAILED`, etc.).
+  - Generates clear, actionable, stack-free failure descriptions with user-facing recovery guidance.
+- Enhanced Unified Processing Persistence & Data Safety (`js/features/processingIntegration.js`):
+  - Preserves previously valid extracted chunks and normalized content if reprocessing fails; chunks are never pre-deleted before extraction succeeds.
+  - Baseline fingerprint integrity check (`getSourceFingerprint`): detects mid-flight source modifications during processing (`SOURCE_CHANGED_CODE`) to prevent overwriting updated content with stale runs.
+  - Deleted-resource guard (`RESOURCE_DELETED_CODE`): prevents persisting orphan records if the resource was deleted while processing.
+  - Tracks attempt metadata (`processingAttempts`, `processingStartedAt`, `processingFailedAt`) on resource records.
+- Built Processing Service bridge (`js/features/processingService.js`):
+  - Connects the queue to `processResourceById` and dispatches reactive events via `notifyProcessingChanged` / `onProcessingChanged`.
+  - Exposes `requestProcessing`, `retryProcessing`, `cancelProcessing`, `isProcessingBusy`, and `assertNotProcessing`.
+  - Stale processing recovery (`recoverStaleProcessing`): automatically sweeps persisted `processing` records left behind by interrupted browser sessions or tab closures (> 60s) into `failed` with retry enabled.
+- Built Pure Display State Derivation (`js/processing/processingDisplay.js`):
+  - Unifies live in-memory queue jobs and persisted IndexedDB resource statuses into consistent UI states (`completed`, `processing`, `queued`, `failed`, `stalled`, `idle`).
+- Integrated UI Components across StudyLens:
+  - Global Header Indicator (`#processing-indicator` in `index.html` & `js/features/processingIndicator.js`): displays real-time spinner and queue count/label; runs periodic stale-job recovery sweep.
+  - Resource Viewer Status Panel (`.processing-status-panel` in `js/features/resourceViewer.js`): displays state, user-friendly error message, Retry button for retryable failures, and Cancel button for queued jobs.
+  - Downstream Study Aids Protection: "Generate Learning Outputs", "Generate Flashcards", "Generate Quiz", and "Extract & Process" buttons are disabled and guarded while processing is active or failed.
+  - Library Resource Cards (`js/features/resourceList.js`): displays badges for `queued` and `stalled` states, and presents a direct Retry button on failed cards.
+  - Unified Forms (`js/features/resourceForm.js`, `js/features/videoResourceForm.js`): routed through `requestProcessing`.
+- Added 18 comprehensive unit tests in `tests/processingQueue.test.mjs` (total 374 tests across suite, 373 passing in Node, 1 browser-only skipped; 100% pass rate).
+- Verified full browser runtime execution in Headless Chrome via CDP across 7 verification checks (`scratch/verify_day22_browser.mjs`) with zero console errors.
+
 ## 0.21.0 — 2026-09-29
 
 - Implemented YouTube Video Learning Resources & Transcript Ingestion for StudyLens without external AI/LLMs (no Gemini, OpenAI, Claude, local models, or remote APIs), backend services, cloud storage, or fragile YouTube scraping hacks.

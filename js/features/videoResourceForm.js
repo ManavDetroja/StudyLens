@@ -10,7 +10,7 @@
 import { parseYouTubeUrl } from './youtubeUrlValidator.js';
 import { parseTranscriptText } from '../processing/transcriptParser.js';
 import { resourceRepository } from '../storage/resourceStore.js';
-import { processAndStore } from './processingIntegration.js';
+import { requestProcessing, PROCESSING_REASONS } from './processingService.js';
 import { openDialog, closeDialog } from '../ui/modal.js';
 import { showToast } from '../ui/toast.js';
 import { notifyResourcesChanged } from '../core/resourceEvents.js';
@@ -205,10 +205,11 @@ export function initVideoResourceForm() {
 
                 const resource = await resourceRepository.createResource(resourceInput);
 
-                // If transcript was provided during creation, automatically process it
+                // If transcript was provided during creation, automatically process it through the queue
                 if (parsedTranscript) {
                     try {
-                        await processAndStore(resource);
+                        const request = await requestProcessing(resource.id);
+                        await request.completion;
                     } catch (processingErr) {
                         console.warn('StudyLens could not process video transcript immediately.', processingErr);
                     }
@@ -269,9 +270,12 @@ export function initVideoResourceForm() {
                     },
                 });
 
-                // Immediately process through orchestrator
+                // Immediately process through processing queue
                 try {
-                    await processAndStore(updated);
+                    const request = await requestProcessing(updated.id, {
+                        reason: PROCESSING_REASONS.SOURCE_CHANGED,
+                    });
+                    await request.completion;
                 } catch (procErr) {
                     console.warn('StudyLens encountered an error processing pasted transcript.', procErr);
                 }

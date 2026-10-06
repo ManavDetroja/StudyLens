@@ -1,10 +1,12 @@
-import { onResourcesChanged } from '../core/resourceEvents.js';
+import { onResourcesChanged, onProcessingChanged } from '../core/resourceEvents.js';
 import { resourceRepository } from '../storage/resourceStore.js';
 import { showToast } from '../ui/toast.js';
 import { refreshDashboardResourceCount } from './storageStatus.js';
 import { formatResourceDate, openResourceViewer } from './resourceViewer.js';
 import { applyLibraryFilters, isFiltered } from '../algorithms/librarySearch.js';
 import { collectAllTags } from '../utils/tagUtils.js';
+import { getProcessingDisplay } from '../processing/processingDisplay.js';
+import { getLiveProcessingJob, retryProcessing } from './processingService.js';
 
 /* ── Cached resource list ────────────────────────────────────────── */
 
@@ -13,16 +15,40 @@ let allResources = [];
 /* ── Card rendering ──────────────────────────────────────────────── */
 
 function createMetadata(resource) {
+    const display = getProcessingDisplay(resource, { job: getLiveProcessingJob(resource.id) });
     const metadata = document.createElement('div');
     metadata.className = 'resource-card-meta';
     const date = document.createElement('span');
     date.textContent = formatResourceDate(resource.createdAt);
     const status = document.createElement('span');
     status.className = 'resource-status';
-    status.dataset.status = resource.status;
-    status.textContent = resource.status;
+    status.dataset.status = display.state;
+    status.textContent = display.label;
     metadata.append(date, status);
     return metadata;
+}
+
+function createProcessingNotice(resource) {
+    const display = getProcessingDisplay(resource, { job: getLiveProcessingJob(resource.id) });
+    if (display.state !== 'failed' && display.state !== 'stalled') return null;
+
+    const notice = document.createElement('div');
+    notice.className = 'resource-processing-notice';
+
+    const message = document.createElement('p');
+    message.className = 'resource-processing-message';
+    message.textContent = display.detail;
+    notice.append(message);
+
+    if (display.canRetry) {
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'button button-secondary button-small';
+        retry.dataset.resourceRetry = resource.id;
+        retry.textContent = 'Retry';
+        notice.append(retry);
+    }
+    return notice;
 }
 
 function createTags(tags) {
@@ -52,6 +78,8 @@ export function createResourceCard(resource, { compact = false } = {}) {
     type.className = 'badge resource-type';
     type.textContent = resource.type;
     card.append(heading, type, createMetadata(resource));
+    const notice = createProcessingNotice(resource);
+    if (notice) card.append(notice);
     if (resource.tags.length) card.append(createTags(resource.tags));
     return card;
 }
@@ -193,8 +221,34 @@ function renderLibrary() {
 
 function bindResourceSelection(selector) {
     document.querySelector(selector)?.addEventListener('click', (event) => {
+        const retryButton = event.target.closest('[data-resource-retry]');
+        if (retryButton) {
+            retryButton.disabled = true;
+            void retryProcessing(retryButton.dataset.resourceRetry).then((result) => {
+                if (result && !result.accepted && !result.deduplicated) {
+                    showToast('This resource cannot be retried right now.', { variant: 'error' });
+                }
+            }).catch((error) => {
+                console.error('StudyLens could not retry processing.', error);
+                showToast('StudyLens could not retry processing. Please try again.', { variant: 'error' });
+            });
+            return;
+        }
+
         const openButton = event.target.closest('[data-resource-open]');
         if (openButton) void openResourceViewer(openButton.dataset.resourceOpen);
+    });
+}
+
+let processingRefreshScheduled = false;
+
+/** Coalesce bursts of processing events into one re-render. */
+function scheduleProcessingRefresh() {
+    if (processingRefreshScheduled) return;
+    processingRefreshScheduled = true;
+    Promise.resolve().then(() => {
+        processingRefreshScheduled = false;
+        void refreshResourceDisplays();
     });
 }
 
@@ -251,5 +305,6 @@ export async function initResourceList() {
     onResourcesChanged(() => {
         void refreshResourceDisplays();
     });
+    onProcessingChanged(scheduleProcessingRefresh);
     await refreshResourceDisplays();
 }

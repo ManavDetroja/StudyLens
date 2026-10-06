@@ -1,16 +1,3 @@
-/**
- * Library search, filtering, and sorting — Day 5.
- *
- * Provides basic local exact-match search across resource title, content,
- * and tags. Resources are filtered in memory from a pre-loaded array.
- *
- * Pipeline order: search → type filter → status filter → tag filter → sort.
- *
- * Current limitation: this is a simple substring search, not fuzzy or
- * semantic. It is efficient for the expected local dataset size. If the
- * library grows to thousands of resources, consider indexing, pagination,
- * or Web Workers in a future version.
- */
 
 /**
  * Normalize a string for case-insensitive, whitespace-tolerant comparison.

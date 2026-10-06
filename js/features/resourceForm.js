@@ -2,7 +2,7 @@ import { notifyResourcesChanged } from '../core/resourceEvents.js';
 import { resourceRepository } from '../storage/resourceStore.js';
 import { closeDialog, openDialog, showModal } from '../ui/modal.js';
 import { showToast } from '../ui/toast.js';
-import { processAndStore } from './processingIntegration.js';
+import { requestProcessing, PROCESSING_REASONS } from './processingService.js';
 import {
     TEXT_RESOURCE_CONTENT_MAX_LENGTH,
     TEXT_RESOURCE_TITLE_MAX_LENGTH,
@@ -130,9 +130,12 @@ export function initResourceActions() {
                 ? await resourceRepository.updateResource(editingResource.id, createTextResourceUpdate(formValues))
                 : await resourceRepository.createResource(createTextResourceInput(formValues));
 
-            /* Process the text resource in the background — non-fatal on failure */
+            /* Process the text resource through the queue — non-fatal on failure */
             try {
-                await processAndStore(resource);
+                const request = await requestProcessing(resource.id, {
+                    reason: editingResource ? PROCESSING_REASONS.SOURCE_CHANGED : PROCESSING_REASONS.REQUESTED,
+                });
+                await request.completion;
             } catch (processingError) {
                 console.warn('StudyLens could not process this resource.', processingError);
             }

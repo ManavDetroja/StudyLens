@@ -40,6 +40,10 @@
                 <strong>Local storage is unavailable.</strong>
                 <span data-storage-error-message></span>
             </div>
+            <div class="processing-indicator" id="processing-indicator" data-processing-indicator role="status" aria-live="polite" hidden>
+                <span class="processing-indicator-spinner" aria-hidden="true"></span>
+                <span data-processing-indicator-text></span>
+            </div>
             <main class="main-content" id="main-content" tabindex="-1">
                 <section class="page-view is-active" id="dashboard" data-page="dashboard" aria-labelledby="dashboard-heading">
                     <div class="welcome-panel"><div><p class="eyebrow">Your learning workspace</p><h1 id="dashboard-heading">Welcome to StudyLens</h1><p class="lead">Bring learning material together and turn it into structured knowledge when processing tools are ready.</p></div></div>
@@ -294,6 +298,11 @@
         <div class="modal-header"><div><p class="eyebrow">Resource reader</p><h2 id="resource-viewer-title" data-resource-viewer-title>Resource</h2></div><button class="icon-button" type="button" aria-label="Close resource reader" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
         <div class="resource-viewer-body">
             <div class="resource-detail-meta"><span class="badge resource-type" data-resource-viewer-type>text</span><span class="resource-status" data-resource-viewer-status>completed</span><span data-resource-viewer-date>Created today</span><span data-resource-viewer-updated hidden></span><span class="resource-source" data-resource-viewer-source hidden></span><span class="badge resource-processed-badge" data-resource-viewer-processed hidden></span></div>
+            <div class="processing-status-panel" data-resource-viewer-processing role="status" aria-live="polite" hidden>
+                <p class="processing-status-text" data-resource-viewer-processing-text></p>
+                <button class="button button-secondary" type="button" data-resource-viewer-retry-processing hidden>Retry</button>
+                <button class="button button-secondary" type="button" data-resource-viewer-cancel-processing hidden>Cancel</button>
+            </div>
             <section aria-labelledby="resource-viewer-tags-heading"><h3 id="resource-viewer-tags-heading">Tags</h3><p class="form-helper" data-resource-viewer-no-tags>No tags added.</p><ul class="resource-tags" data-resource-viewer-tags></ul></section>
             <section aria-labelledby="resource-viewer-file-heading" data-resource-viewer-file-section hidden>
                 <h3 id="resource-viewer-file-heading">File information</h3>

@@ -346,3 +346,34 @@ export interface ImageExtractedContent {
     metadata?: Record<string, unknown>;
 }
 
+/** Processing Queue job statuses (Day 22). */
+export type ProcessingJobStatus = 'queued' | 'started' | 'completed' | 'failed' | 'cancelled';
+
+/** Processing Queue job descriptor (Day 22). */
+export interface ProcessingJob {
+    id: string;
+    resourceId: string;
+    status: ProcessingJobStatus;
+    enqueuedAt: number;
+    startedAt: number | null;
+    completedAt: number | null;
+    attemptCount: number;
+    error: { code?: string; message: string } | null;
+    sourceType?: string;
+    reason?: string;
+}
+
+/** Unified processing display state for UI (Day 22). */
+export type ProcessingDisplayState = 'idle' | 'queued' | 'processing' | 'completed' | 'failed' | 'stalled';
+
+/** Computed processing display representation (Day 22). */
+export interface ProcessingDisplay {
+    state: ProcessingDisplayState;
+    label: string;
+    detail: string | null;
+    canRetry: boolean;
+    canCancel: boolean;
+    busy: boolean;
+    hasContent: boolean;
+}
+

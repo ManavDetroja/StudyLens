@@ -17,9 +17,13 @@
  *      ↓ [chunker]
  *   Segmented Content
  *      ↓ [processedContentRepo]
- *   IndexedDB (processedContent store)
+ *   IndexedDB (processedContent store; atomic replace, old result kept on failure)
  *      ↓
  *   Status: 'completed' (or 'failed' on error with metadata)
+ *
+ * Day 22: callers normally reach this through the local ProcessingQueue
+ * (see processingService.js), which adds FIFO ordering, de-duplication,
+ * bounded concurrency, and retry on top of this single-run orchestrator.
  */
 
 import { processResource } from '../processing/contentProcessingPipeline.js';
@@ -27,6 +31,12 @@ import { ContentProcessingError, asContentProcessingError } from '../processing/
 import { processedContentRepository } from '../storage/processedContentStore.js';
 import { resourceRepository } from '../storage/resourceStore.js';
 import { notifyResourcesChanged } from '../core/resourceEvents.js';
+import {
+    classifyFailure,
+    getFailureMessage,
+    SOURCE_CHANGED_CODE,
+    RESOURCE_DELETED_CODE,
+} from '../processing/processingErrorPolicy.js';
 
 export const PROCESSING_ERROR_CODES = Object.freeze({
     UNSUPPORTED_SOURCE: 'UNSUPPORTED_RESOURCE_TYPE',
@@ -100,21 +110,71 @@ export function classifyProcessingError(error) {
 }
 
 /**
+ * Stable fingerprint of the user-controlled source of a resource. Used to
+ * detect that the source changed while a processing run was in flight.
+ * Processing-written fields (status, normalized content for file sources)
+ * are deliberately excluded or compared before they are written.
+ */
+export function getSourceFingerprint(resource) {
+    return JSON.stringify([
+        resource?.type ?? null,
+        resource?.source ?? null,
+        resource?.content ?? null,
+        resource?.metadata?.transcript ?? null,
+    ]);
+}
+
+/** Metadata keys written by the processing lifecycle (cleared on success). */
+const PROCESSING_METADATA_KEYS = Object.freeze([
+    'processingError',
+    'processingErrorCode',
+    'processingRetryable',
+    'processingFailedAt',
+    'processingStartedAt',
+    'processingAttempts',
+]);
+
+/**
+ * Read the freshest stored copy of a resource.
+ * @returns {Promise<object|null|undefined>} resource; null if deleted; undefined if unknown
+ */
+async function readLatestResource(resRepo, resourceId) {
+    if (!resRepo || typeof resRepo.getResource !== 'function') return undefined;
+    try {
+        return (await resRepo.getResource(resourceId)) ?? null;
+    } catch {
+        return undefined;
+    }
+}
+
+/**
  * Process a resource through the unified processing orchestrator and persist the result.
- * Invalidates and removes any stale processed content for the same resourceId
- * before storing the new processed result (idempotency guarantee).
- * Enforces per-resource concurrency locking to prevent race conditions.
+ *
+ * Data-integrity rules (Day 22):
+ *   - A previously valid processed record is NEVER deleted up front. The new
+ *     result replaces it atomically (ProcessedContentRepository.saveProcessedContent
+ *     removes/adds inside one transaction), so a failed run leaves the old
+ *     result intact.
+ *   - If the resource is deleted or its source changes while processing, the
+ *     new result is discarded instead of being persisted as current.
+ *   - Processing metadata is merged into the LATEST stored metadata, never
+ *     the snapshot taken when the run began.
+ *
+ * Enforces per-resource concurrency locking as a last line of defence; the
+ * ProcessingQueue is the normal entry point.
  *
  * @param {object} resource — a full Resource record
  * @param {object} [options]
  * @param {object} [options.processedRepo] — custom ProcessedContentRepository instance
  * @param {object} [options.resRepo] — custom ResourceRepository instance
+ * @param {number} [options.attemptNumber] — 1-based attempt number from the queue
  * @returns {Promise<object>} — the persisted ProcessedContent record
  * @throws {ContentProcessingError}
  */
 export async function processAndStore(resource, {
     processedRepo = processedContentRepository,
     resRepo = resourceRepository,
+    attemptNumber,
     ...options
 } = {}) {
     if (!resource || typeof resource.id !== 'string' || resource.id.trim() === '') {
@@ -136,27 +196,46 @@ export async function processAndStore(resource, {
     activeProcessingLocks.add(resourceId);
 
     try {
-        // 2. Invalidate/remove stale processed content immediately (idempotency)
-        try {
-            await processedRepo.deleteByResourceId(resourceId);
-        } catch {
-            // Non-fatal if no prior processed content existed
-        }
+        const initialStored = await readLatestResource(resRepo, resourceId);
+        const wasStoredAtStart = Boolean(initialStored);
+        const baselineStoredFingerprint = getSourceFingerprint(initialStored ?? resource);
 
-        // 3. Transition status to 'processing'
+        // 2. Transition status to 'processing' and record the attempt.
+        //    Existing processed content is left untouched.
         if (resRepo) {
             try {
-                await resRepo.updateResource(resourceId, { status: 'processing' });
+                const latest = initialStored ?? resource;
+                const meta = { ...(latest.metadata || {}) };
+                PROCESSING_METADATA_KEYS.forEach((key) => delete meta[key]);
+                meta.processingStartedAt = new Date().toISOString();
+                meta.processingAttempts = Number.isInteger(attemptNumber)
+                    ? attemptNumber
+                    : (Number(latest.metadata?.processingAttempts) || 0) + 1;
+
+                await resRepo.updateResource(resourceId, { status: 'processing', metadata: meta });
                 notifyResourcesChanged({ action: 'updated', resourceId });
             } catch {
                 // Non-fatal status update
             }
         }
 
-        // 4. Run through content processing pipeline
+        // 3. Run through content processing pipeline
         const normalizedContent = await processResource(resource, options);
 
-        // 5. Persist the segmented chunks to processedContent store
+        // 4. Integrity check: was the resource deleted or its source changed meanwhile?
+        const beforeSave = await readLatestResource(resRepo, resourceId);
+        if (wasStoredAtStart && beforeSave === null) {
+            throw new ContentProcessingError('The resource was deleted while it was being processed.', {
+                code: RESOURCE_DELETED_CODE,
+            });
+        }
+        if (wasStoredAtStart && beforeSave && getSourceFingerprint(beforeSave) !== baselineStoredFingerprint) {
+            throw new ContentProcessingError('The resource changed while it was being processed.', {
+                code: SOURCE_CHANGED_CODE,
+            });
+        }
+
+        // 5. Persist the segmented chunks (atomic replace of any previous record)
         let saved;
         try {
             saved = await processedRepo.saveProcessedContent(normalizedContent);
@@ -171,9 +250,14 @@ export async function processAndStore(resource, {
         // 6. Update resource with 'completed' status and synchronized extracted text content
         if (resRepo) {
             try {
-                const meta = { ...(resource.metadata || {}) };
-                delete meta.processingError;
-                delete meta.processingErrorCode;
+                const latest = await readLatestResource(resRepo, resourceId);
+                if (wasStoredAtStart && latest === null) {
+                    // Deleted after the integrity check: do not leave an orphan record.
+                    await processedRepo.deleteByResourceId(resourceId).catch(() => undefined);
+                    return saved;
+                }
+                const meta = { ...((latest ?? resource).metadata || {}) };
+                PROCESSING_METADATA_KEYS.forEach((key) => delete meta[key]);
 
                 await resRepo.updateResource(resourceId, {
                     status: 'completed',
@@ -189,18 +273,22 @@ export async function processAndStore(resource, {
         return saved;
     } catch (error) {
         // 7. On error: record failure on resource while preserving all original data
+        //    (and any previously valid processed content).
         const errorCode = error.code || classifyProcessingError(error);
+        const superseded = errorCode === SOURCE_CHANGED_CODE || errorCode === RESOURCE_DELETED_CODE;
 
-        if (resRepo) {
+        if (resRepo && !superseded) {
             try {
-                await resRepo.updateResource(resourceId, {
-                    status: 'failed',
-                    metadata: {
-                        ...(resource.metadata || {}),
-                        processingError: error.message,
-                        processingErrorCode: errorCode,
-                    },
-                });
+                const latest = (await readLatestResource(resRepo, resourceId)) ?? resource;
+                const failure = classifyFailure(error);
+                const meta = { ...(latest.metadata || {}) };
+                meta.processingError = getFailureMessage(failure.code);
+                meta.processingErrorCode = failure.code;
+                meta.processingRetryable = failure.retryable;
+                meta.processingFailedAt = new Date().toISOString();
+                delete meta.processingStartedAt;
+
+                await resRepo.updateResource(resourceId, { status: 'failed', metadata: meta });
                 notifyResourcesChanged({ action: 'updated', resourceId });
             } catch {
                 // Secondary error ignored

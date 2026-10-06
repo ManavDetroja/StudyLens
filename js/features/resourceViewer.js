@@ -26,17 +26,23 @@ import { deleteNotesForResource } from './noteService.js';
 import { openNoteEditor } from './noteEditor.js';
 import { getFileBlob, deleteFileBlob } from './fileImportService.js';
 import { formatFileSize } from './fileImportConfig.js';
-import { processAndStore, isResourceProcessing } from './processingIntegration.js';
+import { onProcessingChanged } from '../core/resourceEvents.js';
 import { buildYouTubeThumbnailUrl } from './youtubeUrlValidator.js';
 import { openPasteTranscriptDialog } from './videoResourceForm.js';
+import { getProcessingDisplay } from '../processing/processingDisplay.js';
+import {
+    requestProcessing,
+    retryProcessing,
+    cancelProcessing,
+    isProcessingBusy,
+    getLiveProcessingJob,
+} from './processingService.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
 let isGenerating = false;
 let isGeneratingFlashcards = false;
 let isGeneratingQuiz = false;
-let isExtractingPdf = false;
-let isProcessingVideo = false;
 let activeBlobUrl = null;
 
 function revokeActiveBlobUrl() {
@@ -293,15 +299,43 @@ function renderTags(tags) {
     });
 }
 
+function renderProcessingPanel(display) {
+    const panel = document.querySelector('[data-resource-viewer-processing]');
+    const text = document.querySelector('[data-resource-viewer-processing-text]');
+    const retryBtn = document.querySelector('[data-resource-viewer-retry-processing]');
+    const cancelBtn = document.querySelector('[data-resource-viewer-cancel-processing]');
+    if (!panel || !text) return;
+
+    const visible = display.state === 'queued' || display.state === 'processing'
+        || display.state === 'failed' || display.state === 'stalled';
+    panel.hidden = !visible;
+    panel.dataset.state = display.state;
+    text.textContent = visible ? [display.label, display.detail].filter(Boolean).join(' — ') : '';
+
+    if (retryBtn) {
+        retryBtn.hidden = !display.canRetry;
+        retryBtn.disabled = false;
+    }
+    if (cancelBtn) {
+        cancelBtn.hidden = !display.canCancel;
+    }
+}
+
 function renderResource(resource, processed = null, outputsSummary = null, quiz = null, fileBlobRecord = null) {
+    const display = getProcessingDisplay(resource, {
+        job: getLiveProcessingJob(resource.id),
+        hasProcessedContent: Boolean(processed?.normalizedText),
+    });
+
     document.querySelector('[data-resource-viewer-title]').textContent = resource.title;
     document.querySelector('[data-resource-viewer-type]').textContent = resource.type;
     document.querySelector('[data-resource-viewer-date]').textContent = 'Created ' + formatResourceDate(resource.createdAt);
     const statusEl = document.querySelector('[data-resource-viewer-status]');
     if (statusEl) {
-        statusEl.textContent = resource.status;
-        statusEl.dataset.status = resource.status;
+        statusEl.textContent = display.label;
+        statusEl.dataset.status = display.state;
     }
+    renderProcessingPanel(display);
     document.querySelector('[data-resource-viewer-edit]').hidden = resource.type !== 'text';
 
     /* Updated date — show only when meaningfully different from created date */
@@ -339,17 +373,31 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
     const outputsBadge = document.querySelector('[data-resource-viewer-outputs-badge]');
     const outputsContainer = document.querySelector('[data-resource-viewer-outputs-container]');
     const extractPdfBtn = document.querySelector('[data-resource-viewer-extract-pdf]');
+    /* While queued/processing the primary action is disabled; after a failure
+       the panel's Retry action (which enforces the retry policy) replaces it. */
+    const primaryActionBlocked = display.busy || display.state === 'failed' || display.state === 'stalled';
+    const primaryActionTitle = display.busy
+        ? 'Processing is in progress'
+        : (primaryActionBlocked ? 'Use Retry to process this resource again' : '');
     if (extractPdfBtn) {
         if (resource.type === 'pdf' || resource.type === 'image') {
             extractPdfBtn.hidden = false;
             const hasExtracted = resource.status === 'completed' || Boolean(processed?.normalizedText);
-            const isProcessing = isExtractingPdf || isResourceProcessing(resource.id);
-            if (resource.type === 'pdf') {
-                extractPdfBtn.textContent = isProcessing ? 'Extracting…' : (hasExtracted ? 'Reprocess PDF' : 'Extract PDF content');
+            if (display.state === 'queued') {
+                extractPdfBtn.textContent = 'Queued…';
+            } else if (display.busy) {
+                extractPdfBtn.textContent = resource.type === 'pdf' ? 'Extracting…' : 'Processing…';
+            } else if (resource.type === 'pdf') {
+                extractPdfBtn.textContent = hasExtracted ? 'Reprocess PDF' : 'Extract PDF content';
             } else {
-                extractPdfBtn.textContent = isProcessing ? 'Processing…' : (hasExtracted ? 'Reprocess image' : 'Extract image text');
+                extractPdfBtn.textContent = hasExtracted ? 'Reprocess image' : 'Extract image text';
             }
-            extractPdfBtn.disabled = isProcessing;
+            extractPdfBtn.disabled = primaryActionBlocked;
+            if (primaryActionTitle) {
+                extractPdfBtn.title = primaryActionTitle;
+            } else {
+                extractPdfBtn.removeAttribute('title');
+            }
         } else {
             extractPdfBtn.hidden = true;
         }
@@ -366,9 +414,19 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
         if (resource.type === 'video') {
             processVideoBtn.hidden = false;
             const hasExtracted = resource.status === 'completed' || Boolean(processed?.normalizedText);
-            const isProcessing = isProcessingVideo || isResourceProcessing(resource.id);
-            processVideoBtn.textContent = isProcessing ? 'Processing transcript…' : (hasExtracted ? 'Reprocess transcript' : 'Process transcript');
-            processVideoBtn.disabled = isProcessing || !hasContent;
+            if (display.state === 'queued') {
+                processVideoBtn.textContent = 'Queued…';
+            } else if (display.busy) {
+                processVideoBtn.textContent = 'Processing transcript…';
+            } else {
+                processVideoBtn.textContent = hasExtracted ? 'Reprocess transcript' : 'Process transcript';
+            }
+            processVideoBtn.disabled = primaryActionBlocked || !hasContent;
+            if (primaryActionTitle) {
+                processVideoBtn.title = primaryActionTitle;
+            } else {
+                processVideoBtn.removeAttribute('title');
+            }
         } else {
             processVideoBtn.hidden = true;
         }
@@ -421,12 +479,27 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
         }
     }
 
+    /* Day 22 downstream protection: never generate from content that is still
+       being (re)processed, or whose only processing attempt failed. A failed
+       REprocess keeps its previous valid processed content, so generation
+       from that previous result stays available. */
+    const hasUsableProcessed = Boolean(processed?.normalizedText);
+    const generationBlocked = display.busy
+        || ((display.state === 'failed' || display.state === 'stalled') && !hasUsableProcessed);
+    const generationBlockedTitle = display.busy
+        ? 'Wait for processing to finish'
+        : 'Processing failed. Retry processing first';
+
     const generateBtn = document.querySelector('[data-resource-viewer-generate]');
     if (generateBtn) {
         if (!hasContent) {
             generateBtn.disabled = true;
             generateBtn.title = 'Add text content to generate learning outputs';
             generateBtn.textContent = 'Generate learning outputs';
+        } else if (generationBlocked) {
+            generateBtn.disabled = true;
+            generateBtn.title = generationBlockedTitle;
+            generateBtn.textContent = hasOutputs ? 'Regenerate learning outputs' : 'Generate learning outputs';
         } else {
             generateBtn.disabled = false;
             generateBtn.removeAttribute('title');
@@ -442,6 +515,10 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
             generateFlashcardsBtn.disabled = true;
             generateFlashcardsBtn.title = 'Add text content to generate flashcards';
             generateFlashcardsBtn.textContent = 'Generate flashcards';
+        } else if (generationBlocked) {
+            generateFlashcardsBtn.disabled = true;
+            generateFlashcardsBtn.title = generationBlockedTitle;
+            generateFlashcardsBtn.textContent = hasFlashcards ? 'Regenerate flashcards' : 'Generate flashcards';
         } else {
             generateFlashcardsBtn.disabled = false;
             generateFlashcardsBtn.removeAttribute('title');
@@ -457,6 +534,10 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
             generateQuizBtn.disabled = true;
             generateQuizBtn.title = 'Add text content to generate quiz';
             generateQuizBtn.textContent = 'Generate quiz';
+        } else if (generationBlocked) {
+            generateQuizBtn.disabled = true;
+            generateQuizBtn.title = generationBlockedTitle;
+            generateQuizBtn.textContent = hasQuiz ? 'Regenerate quiz' : 'Generate quiz';
         } else {
             generateQuizBtn.disabled = false;
             generateQuizBtn.removeAttribute('title');
@@ -556,58 +637,79 @@ export async function openResourceViewer(resourceId) {
     }
 }
 
+function describeFailureToast(job, resourceType) {
+    const code = job?.errorCode;
+    if (code === 'NO_SELECTABLE_TEXT') {
+        return 'No selectable text was found in this PDF. OCR will be supported in a future milestone.';
+    }
+    if (code === 'NO_EXTRACTED_TEXT') {
+        return 'No readable text could be extracted from this image. Please ensure the image contains legible text.';
+    }
+    const noun = resourceType === 'pdf' ? 'PDF' : (resourceType === 'image' ? 'image' : (resourceType === 'video' ? 'video transcript' : 'resource'));
+    return `Could not process ${noun}: ` + (job?.errorMessage || 'Please try again.');
+}
+
+async function refreshViewerIfActive(resourceId) {
+    if (!activeResource || activeResource.id !== resourceId) return;
+    const dialog = viewerDialog();
+    if (!dialog || !dialog.open) return;
+    try {
+        await refreshResourceViewer(resourceId);
+    } catch (error) {
+        console.warn('StudyLens could not refresh the resource viewer.', error);
+    }
+}
+
+/**
+ * Request processing through the queue and report the outcome once.
+ * Repeated clicks are de-duplicated by the queue; only the click that
+ * actually created the job reports completion.
+ */
+async function requestQueuedProcessing(resource, { successMessage, reason = 'requested' }) {
+    const resourceId = resource.id;
+    const resourceType = resource.type;
+
+    let request;
+    try {
+        request = await requestProcessing(resourceId, { reason });
+    } catch (error) {
+        console.error('StudyLens could not queue processing.', error);
+        showToast('StudyLens could not start processing. Please try again.', { variant: 'error' });
+        return;
+    }
+
+    if (request.deduplicated) {
+        showToast('This resource is already queued or being processed.');
+        return;
+    }
+
+    await refreshViewerIfActive(resourceId);
+    const job = await request.completion;
+    await refreshViewerIfActive(resourceId);
+
+    if (job?.status === 'completed') {
+        showToast(successMessage);
+    } else if (job?.status === 'failed') {
+        showToast(describeFailureToast(job, resourceType), { variant: 'error' });
+    }
+}
+
 export function initResourceViewer() {
     document.querySelector('[data-resource-viewer-extract-pdf]')?.addEventListener('click', async (event) => {
-        if (isExtractingPdf || !activeResource || (activeResource.type !== 'pdf' && activeResource.type !== 'image')) return;
+        if (!activeResource || (activeResource.type !== 'pdf' && activeResource.type !== 'image')) return;
+        if (isProcessingBusy(activeResource.id)) return;
 
-        const btn = event.currentTarget;
-        const wasReprocess = btn.textContent.toLowerCase().includes('reprocess');
+        const wasReprocess = event.currentTarget.textContent.toLowerCase().includes('reprocess');
         const typeLabel = activeResource.type === 'pdf' ? 'PDF' : 'Image';
 
-        isExtractingPdf = true;
-        btn.disabled = true;
-        btn.textContent = activeResource.type === 'pdf' ? 'Extracting…' : 'Processing…';
-
-        try {
-            await processAndStore(activeResource);
-            await refreshResourceViewer(activeResource.id);
-            showToast(wasReprocess ? `${typeLabel} reprocessed successfully.` : `${typeLabel} content extracted successfully.`);
-        } catch (err) {
-            console.error(`StudyLens could not extract ${typeLabel} content.`, err);
-            try {
-                await refreshResourceViewer(activeResource.id);
-            } catch {
-                // Secondary error ignored
-            }
-
-            const isNoText = err?.code === 'NO_SELECTABLE_TEXT' || err?.code === 'NO_EXTRACTED_TEXT' ||
-                (typeof err?.message === 'string' && (err.message.toLowerCase().includes('no selectable text') || err.message.toLowerCase().includes('no readable text')));
-
-            if (isNoText) {
-                if (activeResource.type === 'pdf') {
-                    showToast('No selectable text was found in this PDF. OCR will be supported in a future milestone.', { variant: 'error' });
-                } else {
-                    showToast('No readable text could be extracted from this image. Please ensure the image contains legible text.', { variant: 'error' });
-                }
-            } else {
-                showToast(`Could not extract ${typeLabel} content: ` + (err.message || 'Please try again.'), { variant: 'error' });
-            }
-        } finally {
-            isExtractingPdf = false;
-            if (activeResource) {
-                const hasExtracted = activeResource.status === 'completed';
-                btn.disabled = false;
-                if (activeResource.type === 'pdf') {
-                    btn.textContent = hasExtracted ? 'Reprocess PDF' : 'Extract PDF content';
-                } else {
-                    btn.textContent = hasExtracted ? 'Reprocess image' : 'Extract image text';
-                }
-            }
-        }
+        await requestQueuedProcessing(activeResource, {
+            successMessage: wasReprocess ? `${typeLabel} reprocessed successfully.` : `${typeLabel} content extracted successfully.`,
+        });
     });
 
-    document.querySelector('[data-resource-viewer-process-video]')?.addEventListener('click', async (event) => {
-        if (isProcessingVideo || !activeResource || activeResource.type !== 'video') return;
+    document.querySelector('[data-resource-viewer-process-video]')?.addEventListener('click', async () => {
+        if (!activeResource || activeResource.type !== 'video') return;
+        if (isProcessingBusy(activeResource.id)) return;
 
         const hasContent = typeof activeResource.content === 'string' && activeResource.content.trim().length > 0;
         if (!hasContent) {
@@ -615,25 +717,55 @@ export function initResourceViewer() {
             return;
         }
 
-        const btn = event.currentTarget;
-        isProcessingVideo = true;
-        btn.disabled = true;
-        btn.textContent = 'Processing transcript…';
+        await requestQueuedProcessing(activeResource, {
+            successMessage: 'Video transcript processed successfully.',
+        });
+    });
 
+    document.querySelector('[data-resource-viewer-retry-processing]')?.addEventListener('click', async (event) => {
+        if (!activeResource) return;
+        const resource = activeResource;
+        event.currentTarget.disabled = true;
+
+        let request;
         try {
-            await processAndStore(activeResource);
-            await refreshResourceViewer(activeResource.id);
-            showToast('Video transcript processed successfully.');
-        } catch (err) {
-            console.error('StudyLens could not process video transcript.', err);
-            showToast('Could not process video transcript: ' + (err.message || 'Please try again.'), { variant: 'error' });
-        } finally {
-            isProcessingVideo = false;
-            if (activeResource) {
-                btn.disabled = false;
-                btn.textContent = 'Reprocess transcript';
-            }
+            request = await retryProcessing(resource.id);
+        } catch (error) {
+            console.error('StudyLens could not retry processing.', error);
+            showToast('StudyLens could not retry processing. Please try again.', { variant: 'error' });
+            await refreshViewerIfActive(resource.id);
+            return;
         }
+
+        if (!request.accepted) {
+            if (request.reason === 'RETRY_LIMIT_REACHED') {
+                showToast('Retry limit reached for this resource.', { variant: 'error' });
+            } else if (request.reason === 'NON_RETRYABLE') {
+                showToast('This failure cannot be fixed by retrying.', { variant: 'error' });
+            }
+            await refreshViewerIfActive(resource.id);
+            return;
+        }
+
+        await refreshViewerIfActive(resource.id);
+        const job = await request.completion;
+        await refreshViewerIfActive(resource.id);
+        if (job?.status === 'completed') {
+            showToast('Processing completed after retry.');
+        } else if (job?.status === 'failed') {
+            showToast(describeFailureToast(job, resource.type), { variant: 'error' });
+        }
+    });
+
+    document.querySelector('[data-resource-viewer-cancel-processing]')?.addEventListener('click', async () => {
+        if (!activeResource) return;
+        const result = cancelProcessing(activeResource.id);
+        if (result.cancelled) {
+            showToast('Processing cancelled.');
+        } else if (result.reason === 'ACTIVE_CANCEL_UNSUPPORTED') {
+            showToast('Processing already started and cannot be cancelled.', { variant: 'error' });
+        }
+        await refreshViewerIfActive(activeResource.id);
     });
 
     document.querySelector('[data-resource-viewer-paste-transcript]')?.addEventListener('click', () => {
@@ -643,6 +775,10 @@ export function initResourceViewer() {
 
     document.querySelector('[data-resource-viewer-generate]')?.addEventListener('click', async (event) => {
         if (isGenerating || !activeResource) return;
+        if (isProcessingBusy(activeResource.id)) {
+            showToast('Wait for processing to finish before generating learning outputs.', { variant: 'error' });
+            return;
+        }
 
         const hasContent = typeof activeResource.content === 'string' && activeResource.content.trim().length > 0;
         if (!hasContent) {
@@ -684,6 +820,10 @@ export function initResourceViewer() {
 
     document.querySelector('[data-resource-viewer-generate-flashcards]')?.addEventListener('click', async (event) => {
         if (isGeneratingFlashcards || !activeResource) return;
+        if (isProcessingBusy(activeResource.id)) {
+            showToast('Wait for processing to finish before generating flashcards.', { variant: 'error' });
+            return;
+        }
 
         const hasContent = typeof activeResource.content === 'string' && activeResource.content.trim().length > 0;
         if (!hasContent) {
@@ -714,6 +854,10 @@ export function initResourceViewer() {
 
     document.querySelector('[data-resource-viewer-generate-quiz]')?.addEventListener('click', async (event) => {
         if (isGeneratingQuiz || !activeResource) return;
+        if (isProcessingBusy(activeResource.id)) {
+            showToast('Wait for processing to finish before generating a quiz.', { variant: 'error' });
+            return;
+        }
 
         const hasContent = typeof activeResource.content === 'string' && activeResource.content.trim().length > 0;
         if (!hasContent) {
@@ -775,6 +919,7 @@ export function initResourceViewer() {
         confirmButton.textContent = 'Deleting…';
 
         try {
+            cancelProcessing(pendingDeleteId);
             const deleted = await resourceRepository.deleteResource(pendingDeleteId);
             closeDialog(deleteDialog());
             if (!deleted) {
@@ -841,6 +986,18 @@ export function initResourceViewer() {
             const dialog = viewerDialog();
             if (dialog && dialog.open) {
                 await refreshResourceViewer(resourceId);
+            }
+        }
+    });
+
+    onProcessingChanged(async ({ resourceId }) => {
+        if (!activeResource || activeResource.id !== resourceId) return;
+        const dialog = viewerDialog();
+        if (dialog && dialog.open) {
+            try {
+                await refreshResourceViewer(resourceId);
+            } catch (error) {
+                console.warn('StudyLens could not refresh the resource viewer.', error);
             }
         }
     });

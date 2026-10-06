@@ -63,4 +63,23 @@ export function onNotesChanged(listener) {
     return () => resourceEvents.removeEventListener(NOTES_CHANGED, handler);
 }
 
+/**
+ * Processing queue events (Day 22). One channel, like the other domains;
+ * `detail.action` is one of: queued, started, completed, failed, retried,
+ * cancelled, recovered. `detail` also carries `resourceId`, `job` (a plain
+ * job snapshot) and `queue` (queued/processing counts) where applicable.
+ */
+const PROCESSING_CHANGED = 'processingchanged';
+
+export function notifyProcessingChanged(detail) {
+    resourceEvents.dispatchEvent(new CustomEvent(PROCESSING_CHANGED, { detail }));
+}
+
+export function onProcessingChanged(listener) {
+    const handler = (event) => listener(event.detail);
+    resourceEvents.addEventListener(PROCESSING_CHANGED, handler);
+
+    return () => resourceEvents.removeEventListener(PROCESSING_CHANGED, handler);
+}
+
 

@@ -682,6 +682,70 @@ DOWNSTREAM LEARNING ENGINES
   - Video resources with ingested transcripts are saved to `processedContentStore` as ordered chunks with authentic `sourceChunkIds`.
   - Directly drives Day 10 Learning Outputs, Day 12 Flashcards, Day 13–14 Quizzes, and Day 15 Notes with zero specialized downstream handling needed.
 
+## Local Content Processing Queue, Retry, and Recovery System (Day 22)
+
+Day 22 introduces a resilient, in-memory browser-local FIFO processing queue, bounded retry mechanism, stale processing recovery, and data-safe persistence layer for multimodal content processing (Text, PDF, Image, Video) without backend services, server-side queues (no Redis, RabbitMQ, Celery), or external AI/LLMs.
+
+### Architecture Flow
+```
+User / UI Trigger (Form submission, Card Retry, Viewer Reprocess)
+    ↓
+`processingService.requestProcessing(resourceId)`
+    ↓
+Local FIFO `ProcessingQueue` (`js/processing/processingQueue.js`)
+    - In-memory job lifecycle: queued → started → completed | failed | cancelled
+    - Concurrency bounded to 1 (`maxConcurrent = 1`) to preserve UI responsiveness during heavy PDF parsing and OCR
+    - Same-resource deduplication (coalesces duplicate enqueues)
+    - Re-run on source change: queuing with reason 'source-changed' re-runs after active flight finishes
+    - Clean cancellation for queued/waiting jobs
+    ↓
+Unified Processing Orchestrator (`js/features/processingIntegration.js`)
+    - Baseline source fingerprint integrity check (`getSourceFingerprint`) prevents overwriting with stale results
+    - Preserves previously valid extracted chunks & normalized text if reprocessing fails (no pre-deletion)
+    - Concurrency lock (`activeProcessingLocks`) prevents parallel race conditions
+    - Deleted-resource guard cleans up orphan records if resource was deleted mid-flight
+    ↓
+Source Adapters & Content Pipeline (`js/processing/contentProcessingPipeline.js`)
+    - TextAdapter / PdfAdapter / ImageAdapter / VideoAdapter
+    - Normalization → Paragraph Chunking → Metadata Enrichment
+    ↓
+Persistence (`processedContentRepository` + `resourceRepository`)
+    - Chunks safely persisted
+    - Resource status transitioned to `completed` and attempt metadata updated
+    ↓
+Reactive Events & UI Updates
+    - `notifyProcessingChanged` / `onProcessingChanged`
+    - Global `#processing-indicator` in app header
+    - Resource Viewer `.processing-status-panel` with live status, Retry, and Cancel buttons
+    - Downstream study aid generation protected (buttons disabled while processing)
+    - Library cards display processing badges and direct card-level Retry buttons
+```
+
+### Module Responsibilities
+- **Local FIFO Queue (`js/processing/processingQueue.js`)**:
+  - Pure in-memory queue manager controlling job transitions and concurrency limits.
+  - Default `maxConcurrent: 1`, `maxAttempts: 2`, `autoRetry: true`.
+  - Emits events (`queued`, `started`, `completed`, `failed`, `cancelled`, `retrying`).
+  - Cancellation boundaries: cleanly cancels waiting jobs; actively executing worker tasks (PDF parser / OCR worker) cannot be safely aborted in the browser without tearing down shared workers, and active cancellation is rejected with `ACTIVE_CANCEL_UNSUPPORTED`.
+- **Pure Error Policy (`js/processing/processingErrorPolicy.js`)**:
+  - Pure error categorization classifying failure codes into permanent (`UNSUPPORTED_SOURCE`, `TRANSCRIPT_UNAVAILABLE`, `INVALID_PDF`, `RETRY_LIMIT_REACHED`, etc.) vs transient/retryable (`NETWORK_TIMEOUT`, `STORAGE_ERROR`, `PROCESSING_INTERRUPTED`, `EXTRACTION_FAILED`, etc.).
+  - Produces human-friendly, stack-free error descriptions and actionable remediation advice.
+- **Pure Display State (`js/processing/processingDisplay.js`)**:
+  - Unifies live in-memory queue jobs and persisted IndexedDB resource status into a cohesive display model (`completed`, `processing`, `queued`, `failed`, `stalled`, `idle`).
+  - Evaluates retry eligibility (`canRetry`), cancellation eligibility (`canCancel`), busy state (`busy`), and stale threshold (> 60s).
+- **Processing Service Bridge (`js/features/processingService.js`)**:
+  - Singleton application facade wiring the queue to `processResourceById` and dispatches reactive events via `notifyProcessingChanged`.
+  - Exposes `requestProcessing`, `retryProcessing`, `cancelProcessing`, `isProcessingBusy`, and `assertNotProcessing`.
+  - Stale processing recovery (`recoverStaleProcessing`): scans for persisted `processing` records older than 60s without an active in-memory job and safely resets them to `failed` with retry enabled.
+- **Data-Safe Persistence (`js/features/processingIntegration.js`)**:
+  - Atomic swap: existing processed chunks remain intact in `processedContentStore` until a reprocessing run successfully completes.
+  - Mid-flight mutation detection: verifies that the stored source fingerprint has not changed between start and finish (`SOURCE_CHANGED_CODE`).
+  - Attempt tracking: records `processingAttempts`, `processingStartedAt`, `processingFailedAt` in resource metadata.
+- **UI Components & Downstream Protection**:
+  - `#processing-indicator`: Global indicator in the application header indicating busy status, job count, and running periodic stale-job sweeps.
+  - `.processing-status-panel`: Contextual banner inside the Resource Viewer rendering friendly status messages, Retry button, and Cancel button.
+  - Downstream Protection: Guards `generateLearningOutputsForResource`, `generateFlashcardsForResource`, `generateQuizForResource`, and "Extract & Process" against execution while a resource is in-flight or failed.
+
 
 
 

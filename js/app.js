@@ -13,6 +13,7 @@ import { initNoteEditor } from './features/noteEditor.js';
 import { initFileImportForm } from './features/fileImportForm.js';
 import { initVideoResourceForm } from './features/videoResourceForm.js';
 import { initializeApplicationStorage } from './features/storageStatus.js';
+import { initProcessingIndicator } from './features/processingIndicator.js';
 
 async function initApp() {
     initModal();
@@ -26,6 +27,7 @@ async function initApp() {
     initNoteEditor();
     const storageReady = await initializeApplicationStorage();
     if (storageReady) {
+        await initProcessingIndicator();
         await initResourceList();
         initNotesPage();
         initFlashcardPage();

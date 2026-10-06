@@ -148,12 +148,22 @@
 - [x] Add 21 comprehensive unit tests in `tests/youtubeVideoProcessing.test.mjs` (356 total tests, 355 passing in Node, 1 browser-only skipped; 100% pass rate).
 - [x] Verify full browser runtime execution in Headless Chrome via CDP across 10 verification steps (`scratch/verify_day21_browser.mjs`).
 - [x] Update TypeScript declarations in `ts/types.ts` (`TranscriptSegment`, `ParsedTranscript`, `VideoResourceMetadata`).
+- [x] Build lightweight, browser-local in-memory FIFO queue manager (`ProcessingQueue` in `js/processing/processingQueue.js`) with bounded concurrency (default 1), same-resource deduplication, waiting job cancellation, and re-run on source change.
+- [x] Implement pure error classification and user messaging policy (`js/processing/processingErrorPolicy.js`) categorizing failures into permanent vs transient with stack-free descriptions.
+- [x] Implement pure display state derivation (`getProcessingDisplay` in `js/processing/processingDisplay.js`) unifying in-memory queue jobs and persisted IndexedDB resource statuses.
+- [x] Upgrade unified persistence (`processAndStore` in `js/features/processingIntegration.js`) to be data-safe: atomic swap preserving existing chunks on failure, mid-flight source mutation detection (`getSourceFingerprint`), and deleted-resource guards.
+- [x] Build processing service bridge (`js/features/processingService.js`) with reactive event notifications (`notifyProcessingChanged`), execution locks (`assertNotProcessing`), and automatic stale processing recovery (> 60s).
+- [x] Add global processing indicator (`#processing-indicator` in `index.html` & `js/features/processingIndicator.js`) with real-time status and periodic recovery sweeps.
+- [x] Upgrade Resource Viewer (`js/features/resourceViewer.js`) with contextual processing status panel, Retry/Cancel triggers, and downstream generation locking during active runs.
+- [x] Add library card processing badges and direct card-level Retry buttons in `js/features/resourceList.js`.
+- [x] Add 18 comprehensive unit tests in `tests/processingQueue.test.mjs` (374 total tests, 373 passing in Node, 1 browser-only skipped; 100% pass rate).
+- [x] Verify full browser runtime execution in Headless Chrome via CDP across 7 verification checks (`scratch/verify_day22_browser.mjs`) with zero console errors.
 
 ## Next
 
-- [ ] Implement spaced repetition review (Leitner / SM-2) or multi-resource study sets (Day 22+).
+- [ ] Implement spaced repetition review (Leitner / SM-2) or multi-resource study sets (Day 23+).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, local image resources, and YouTube video resources with transcript ingestion, unified content processing pipelines, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM. Day 20 unifies content processing across modalities. Day 21 introduces YouTube video resources and honest transcript ingestion.
+No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, local image resources, and YouTube video resources with transcript ingestion, unified content processing pipelines, resilient local processing queue & retry recovery system, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM. Day 20 unifies content processing across modalities. Day 21 introduces YouTube video resources and honest transcript ingestion. Day 22 establishes a robust local processing queue and recovery mechanism.
 
