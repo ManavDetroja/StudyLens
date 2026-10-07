@@ -1,7 +1,7 @@
 import { StorageError } from './errors.js';
 
 export const DATABASE_NAME = 'StudyLensDB';
-export const DATABASE_VERSION = 8;
+export const DATABASE_VERSION = 9;
 export const RESOURCE_STORE = 'resources';
 export const PROCESSED_CONTENT_STORE = 'processedContent';
 export const LEARNING_OUTPUT_STORE = 'learningOutputs';
@@ -9,6 +9,7 @@ export const QUIZ_STORE = 'quizzes';
 export const QUIZ_ATTEMPT_STORE = 'quizAttempts';
 export const NOTE_STORE = 'notes';
 export const FILE_BLOB_STORE = 'fileBlobs';
+export const STUDY_SESSION_STORE = 'studySessions';
 
 export const ALL_REQUIRED_STORES = Object.freeze([
     RESOURCE_STORE,
@@ -18,6 +19,7 @@ export const ALL_REQUIRED_STORES = Object.freeze([
     QUIZ_ATTEMPT_STORE,
     NOTE_STORE,
     FILE_BLOB_STORE,
+    STUDY_SESSION_STORE,
 ]);
 
 export const RESOURCE_INDEXES = Object.freeze([
@@ -53,6 +55,13 @@ export const NOTE_INDEXES = Object.freeze([
     { name: 'resourceId', keyPath: 'resourceId', unique: false },
     { name: 'updatedAt', keyPath: 'updatedAt', unique: false },
     { name: 'createdAt', keyPath: 'createdAt', unique: false },
+]);
+
+export const STUDY_SESSION_INDEXES = Object.freeze([
+    { name: 'resourceId', keyPath: 'resourceId', unique: false },
+    { name: 'startedAt', keyPath: 'startedAt', unique: false },
+    { name: 'completedAt', keyPath: 'completedAt', unique: false },
+    { name: 'status', keyPath: 'status', unique: false },
 ]);
 
 export function ensureStore(database, transaction, storeName, keyOptions) {
@@ -99,6 +108,10 @@ export function ensureAllRequiredStoresAndIndexes(database, transaction) {
 
     // 7. File blobs store (keyPath: 'resourceId')
     ensureStore(database, transaction, FILE_BLOB_STORE, { keyPath: 'resourceId' });
+
+    // 8. Study sessions store (keyPath: 'id')
+    const sessionStore = ensureStore(database, transaction, STUDY_SESSION_STORE, { keyPath: 'id' });
+    ensureStoreIndexes(sessionStore, STUDY_SESSION_INDEXES);
 }
 
 export function upgradeDatabaseSchema(database, transaction, oldVersion) {
@@ -168,5 +181,15 @@ export function upgradeDatabaseSchema(database, transaction, oldVersion) {
     // interrupted, partial, or out-of-order versions without modifying existing records.
     if (oldVersion < 8) {
         ensureAllRequiredStoresAndIndexes(database, transaction);
+    }
+
+    // Version 9: Study Sessions store (Day 24)
+    if (oldVersion < 9) {
+        if (!database.objectStoreNames.contains(STUDY_SESSION_STORE)) {
+            const sessionStore = database.createObjectStore(STUDY_SESSION_STORE, { keyPath: 'id' });
+            STUDY_SESSION_INDEXES.forEach(({ name, keyPath, unique }) => {
+                sessionStore.createIndex(name, keyPath, { unique });
+            });
+        }
     }
 }

@@ -10,6 +10,7 @@ import { initQuizPlayer } from './features/quizPlayer.js';
 import { initAnalyticsPage } from './features/analyticsPage.js';
 import { initNotesPage } from './features/notesPage.js';
 import { initNoteEditor } from './features/noteEditor.js';
+import { initStudySessionUI } from './features/studySessionUI.js';
 import { initFileImportForm } from './features/fileImportForm.js';
 import { initVideoResourceForm } from './features/videoResourceForm.js';
 import { initializeApplicationStorage } from './features/storageStatus.js';
@@ -25,6 +26,7 @@ async function initApp() {
     initFlashcardViewer();
     initQuizPlayer();
     initNoteEditor();
+    initStudySessionUI();
     const storageReady = await initializeApplicationStorage();
     if (storageReady) {
         await initProcessingIndicator();

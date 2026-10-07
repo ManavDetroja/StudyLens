@@ -327,8 +327,15 @@
                 <div class="resource-outputs-summary" data-resource-viewer-outputs-summary hidden></div>
                 <div class="resource-outputs-container" data-resource-viewer-outputs-container></div>
             </section>
+            <section class="resource-sessions-section" aria-labelledby="resource-viewer-sessions-heading" data-resource-viewer-sessions-section hidden>
+                <div class="learning-outputs-header">
+                    <h3 id="resource-viewer-sessions-heading">Past study sessions</h3>
+                    <span class="badge" data-resource-viewer-sessions-badge hidden></span>
+                </div>
+                <div class="resource-sessions-list" data-resource-viewer-sessions-list></div>
+            </section>
         </div>
-        <div class="modal-footer dialog-actions resource-viewer-actions"><button class="button button-primary" type="button" data-resource-viewer-extract-pdf hidden>Extract PDF content</button><button class="button button-primary" type="button" data-resource-viewer-process-video hidden>Process transcript</button><button class="button button-secondary" type="button" data-resource-viewer-paste-transcript hidden>Paste transcript</button><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-add-note>Add note</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
+        <div class="modal-footer dialog-actions resource-viewer-actions"><button class="button button-primary" type="button" data-resource-viewer-start-session>Start study session</button><button class="button button-primary" type="button" data-resource-viewer-extract-pdf hidden>Extract PDF content</button><button class="button button-primary" type="button" data-resource-viewer-process-video hidden>Process transcript</button><button class="button button-secondary" type="button" data-resource-viewer-paste-transcript hidden>Paste transcript</button><button class="button button-secondary" type="button" data-resource-viewer-generate>Generate learning outputs</button><button class="button button-secondary" type="button" data-resource-viewer-generate-flashcards>Generate flashcards</button><button class="button button-secondary" type="button" data-resource-viewer-generate-quiz>Generate quiz</button><button class="button button-secondary" type="button" data-resource-viewer-add-note>Add note</button><button class="button button-secondary" type="button" data-resource-viewer-edit>Edit</button><button class="button button-danger" type="button" data-resource-viewer-delete>Delete</button></div>
     </dialog>
     <dialog class="modal confirm-dialog" id="delete-resource-dialog" aria-labelledby="delete-resource-title" aria-describedby="delete-resource-description" data-dialog>
         <div class="modal-header"><div><p class="eyebrow">Delete resource</p><h2 id="delete-resource-title">Delete this resource?</h2></div><button class="icon-button" type="button" aria-label="Close delete confirmation" data-dialog-close><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
@@ -436,6 +443,143 @@
                     <button class="button button-primary" type="button" data-quiz-retry>Take quiz again</button>
                 </div>
             </div>
+        </div>
+    </dialog>
+    <dialog class="modal study-session-dialog" id="study-session-dialog" aria-labelledby="study-session-title" data-dialog>
+        <div class="modal-header study-session-header">
+            <div>
+                <p class="eyebrow">Study mode</p>
+                <h2 id="study-session-title" data-study-session-title>Study Session</h2>
+            </div>
+            <div class="study-session-header-meta">
+                <span class="study-session-timer-badge" data-study-session-timer aria-label="Session elapsed time">0s</span>
+                <button class="icon-button" type="button" aria-label="Exit study session" data-study-session-exit>
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <nav class="study-session-stepper" data-study-session-stepper aria-label="Study session roadmap"></nav>
+
+        <div class="study-session-body">
+            <!-- 1. Overview View -->
+            <div class="study-view study-overview-view" data-study-view="overview">
+                <div class="study-overview-card">
+                    <h3>Session Roadmap</h3>
+                    <p class="study-overview-intro">Review your study materials in a focused, guided sequence designed for active recall and retention.</p>
+                    <div class="study-overview-grid" data-study-overview-grid></div>
+                </div>
+            </div>
+
+            <!-- 2. Learning Outputs View -->
+            <div class="study-view study-outputs-view" data-study-view="outputs" hidden>
+                <div class="study-outputs-container" data-study-outputs-container></div>
+            </div>
+
+            <!-- 3. Flashcards View -->
+            <div class="study-view study-flashcards-view" data-study-view="flashcards" hidden>
+                <div class="study-flashcard-stage">
+                    <div class="flashcard-progress-bar-container" aria-hidden="true">
+                        <div class="flashcard-progress-bar" data-study-flashcard-progress-bar style="width: 0%;"></div>
+                    </div>
+                    <div class="flashcard-meta-bar">
+                        <span class="flashcard-counter" data-study-flashcard-counter aria-live="polite">Card 1 of 1</span>
+                        <span class="badge flashcard-source-badge" data-study-flashcard-source-badge hidden></span>
+                    </div>
+                    <div class="flashcard-perspective">
+                        <div class="flashcard-card" data-study-flashcard-card tabindex="0" role="button" aria-label="Flashcard. Click or press Space to flip between question and answer.">
+                            <div class="flashcard-face flashcard-front">
+                                <span class="flashcard-label">Front</span>
+                                <p class="flashcard-text" data-study-flashcard-front></p>
+                                <span class="flashcard-hint">Click or press Space to flip</span>
+                            </div>
+                            <div class="flashcard-face flashcard-back">
+                                <span class="flashcard-label">Back</span>
+                                <p class="flashcard-text" data-study-flashcard-back></p>
+                                <span class="flashcard-hint">Click or press Space to flip back</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flashcard-keyboard-hints" aria-hidden="true">
+                        <span><kbd>Space</kbd> Flip</span>
+                        <span><kbd>←</kbd> Prev</span>
+                        <span><kbd>→</kbd> Next</span>
+                    </div>
+                    <div class="study-flashcard-actions">
+                        <button class="button button-secondary button-small" type="button" data-study-flashcard-prev aria-label="Previous flashcard">Previous card</button>
+                        <button class="button button-primary button-small" type="button" data-study-flashcard-flip>Flip card</button>
+                        <button class="button button-secondary button-small" type="button" data-study-flashcard-next aria-label="Next flashcard">Next card</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Quiz View -->
+            <div class="study-view study-quiz-view" data-study-view="quiz" hidden>
+                <div data-study-quiz-active>
+                    <div class="quiz-progress-bar-container" aria-hidden="true">
+                        <div class="quiz-progress-bar" data-study-quiz-progress-bar style="width: 0%;"></div>
+                    </div>
+                    <div class="quiz-meta-bar">
+                        <span class="quiz-counter" data-study-quiz-counter aria-live="polite">Question 1 of 1</span>
+                        <span class="badge quiz-source-badge" data-study-quiz-source-badge hidden></span>
+                    </div>
+                    <div class="quiz-question-card">
+                        <h3 class="quiz-question-text" data-study-quiz-question-text></h3>
+                        <div class="quiz-options-list" data-study-quiz-options-list role="group" aria-label="Answer options"></div>
+                    </div>
+                    <div class="study-quiz-actions">
+                        <button class="button button-secondary button-small" type="button" data-study-quiz-prev aria-label="Previous question">Previous question</button>
+                        <button class="button button-secondary button-small" type="button" data-study-quiz-next aria-label="Next question">Next question</button>
+                        <button class="button button-primary button-small" type="button" data-study-quiz-submit hidden>Submit quiz</button>
+                    </div>
+                </div>
+                <div data-study-quiz-results hidden>
+                    <div class="quiz-score-banner">
+                        <p class="eyebrow">Quiz Complete</p>
+                        <h3 class="quiz-score-title" data-study-quiz-score-banner></h3>
+                        <div class="quiz-score-stats" data-study-quiz-score-stats></div>
+                    </div>
+                    <div class="quiz-results-breakdown" data-study-quiz-results-breakdown></div>
+                </div>
+            </div>
+
+            <!-- 5. Summary View -->
+            <div class="study-view study-summary-view" data-study-view="summary" hidden>
+                <div class="study-summary-card">
+                    <div class="study-summary-header">
+                        <span class="study-summary-badge-icon" aria-hidden="true">✓</span>
+                        <div>
+                            <p class="eyebrow">Session complete</p>
+                            <h3>Study Session Complete</h3>
+                        </div>
+                    </div>
+                    <div class="study-summary-stats-grid" data-study-summary-stats-grid></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer dialog-actions study-session-footer">
+            <button class="button button-secondary" type="button" data-study-session-prev>Previous</button>
+            <button class="button button-secondary" type="button" data-study-session-note>Take note</button>
+            <button class="button button-secondary" type="button" data-study-session-cancel>Exit session</button>
+            <button class="button button-primary" type="button" data-study-session-next>Continue</button>
+            <button class="button button-primary" type="button" data-study-session-finish hidden>Done</button>
+        </div>
+    </dialog>
+    <dialog class="modal confirm-dialog" id="study-session-exit-dialog" aria-labelledby="study-session-exit-title" aria-describedby="study-session-exit-description" data-dialog>
+        <div class="modal-header">
+            <div>
+                <p class="eyebrow">Exit study session</p>
+                <h2 id="study-session-exit-title">Leave active session?</h2>
+            </div>
+            <button class="icon-button" type="button" aria-label="Close exit confirmation" data-dialog-close>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+        <p id="study-session-exit-description">Exiting now will mark your study session as abandoned. Are you sure you want to leave?</p>
+        <div class="modal-footer dialog-actions">
+            <button class="button button-secondary" type="button" data-dialog-close>Keep studying</button>
+            <button class="button button-danger" type="button" data-study-session-confirm-exit>Exit session</button>
         </div>
     </dialog>
     <dialog class="modal note-editor-dialog" id="note-editor-dialog" aria-labelledby="note-editor-title" data-dialog>

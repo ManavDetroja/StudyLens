@@ -57,7 +57,7 @@ The UI never opens IndexedDB directly. js/features/storageStatus.js coordinates 
 #### Database schema
 
 - Database: StudyLensDB
-- Schema version: 7
+- Schema version: 9
 - Object stores:
   - `resources`, keyed by the immutable Resource id (non-unique indexes: type, createdAt, updatedAt, and status)
   - `processedContent`, keyed by UUID id (unique index: resourceId)
@@ -66,8 +66,9 @@ The UI never opens IndexedDB directly. js/features/storageStatus.js coordinates 
   - `quizAttempts`, keyed by UUID id (indexes: quizId, resourceId, completedAt, createdAt)
   - `notes`, keyed by UUID id (indexes: resourceId, updatedAt, createdAt)
   - `fileBlobs`, keyed by the immutable Resource id (`resourceId`)
+  - `studySessions`, keyed by UUID id (indexes: resourceId, startedAt, completedAt, status)
 
-The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, querying learning outputs by resource, type, creation date, or source chunk, fast retrieval/cleanup of quizzes by parent resourceId, efficient chronological filtering and lookup of quiz attempt histories by quiz or parent resource, fast retrieval/cleanup and chronological sorting of user notes, and direct isolation of heavy binary file blobs from metadata querying.
+The indexes support resource-type views, processing queues, chronological listings, recent-resource sorting, instant lookup/replacement of processed content by resourceId, querying learning outputs by resource, type, creation date, or source chunk, fast retrieval/cleanup of quizzes by parent resourceId, efficient chronological filtering and lookup of quiz attempt histories by quiz or parent resource, fast retrieval/cleanup and chronological sorting of user notes, direct isolation of heavy binary file blobs from metadata querying, and fast retrieval/cleanup, chronological tracking, and status filtering of study session sessions.
 
 ### Storage modules
 
@@ -79,10 +80,12 @@ The indexes support resource-type views, processing queues, chronological listin
 - js/storage/learningOutputValidation.js owns learning output validation, UUID generation, and immutable-field checks.
 - js/storage/learningOutputStore.js exposes LearningOutputRepository for durable study aids storage.
 - js/storage/fileBlobStore.js exposes FileBlobRepository for durable binary file blob storage.
+- js/storage/studySessionValidation.js owns study session validation, UUID generation, immutable checks, and duration calculations.
+- js/storage/studySessionStore.js exposes StudySessionRepository for durable study session storage.
 
 ### Migration strategy
 
-Schema changes increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Version 2 introduced the `processedContent` store with a unique `resourceId` index. Version 3 introduced the `learningOutputs` store with `resourceId`, `type`, `createdAt`, and multi-entry `sourceChunkIds` indexes. Version 4 added the `quizzes` store. Version 5 added the `quizAttempts` store. Version 6 added the `notes` store. Version 7 added the `fileBlobs` store keyed by `resourceId`. Version 8 introduced a comprehensive self-healing migration (`ensureAllRequiredStoresAndIndexes`) and post-open schema verification that automatically reconciles and creates any missing stores or indexes from partial or out-of-order upgrades without touching existing data. All migrations preserve existing data.
+Schema changes increment DATABASE_VERSION and add a version-specific migration in upgradeDatabaseSchema. Version 2 introduced the `processedContent` store with a unique `resourceId` index. Version 3 introduced the `learningOutputs` store with `resourceId`, `type`, `createdAt`, and multi-entry `sourceChunkIds` indexes. Version 4 added the `quizzes` store. Version 5 added the `quizAttempts` store. Version 6 added the `notes` store. Version 7 added the `fileBlobs` store keyed by `resourceId`. Version 8 introduced a comprehensive self-healing migration (`ensureAllRequiredStoresAndIndexes`) and post-open schema verification that automatically reconciles and creates any missing stores or indexes from partial or out-of-order upgrades without touching existing data. Version 9 added the `studySessions` store with `resourceId`, `startedAt`, `completedAt`, and `status` indexes. All migrations preserve existing data.
 
 ### Resource model
 
@@ -780,9 +783,56 @@ Resource Viewer & Cascading Deletion (`js/features/resourceViewer.js`)
     - Fully responsive actions with mobile touch stacking and zero horizontal overflow
 ```
 
+## Study Session Mode Architecture (Day 24)
 
+Day 24 connects existing StudyLens learning tools into one focused, distraction-free, sequential study workflow.
 
+```
+Select Resource (Library / Viewer)
+    ↓
+Start Study Session
+    ↓
+Study Session Service (`js/features/studySessionService.js`)
+    - Assess readiness (`assessResourceReadiness`)
+    - Dynamic step sequence planner (`planSessionSteps`):
+      [Overview] → [Outputs]* → [Flashcards]* → [Quiz]* → [Summary]
+      (*only steps with available learning materials are included)
+    - In-memory active session tracking & elapsed timer
+    ↓
+Study Session UI Controller (`js/features/studySessionUI.js`)
+    - Full-screen modal (`#study-session-dialog`)
+    - Real-time elapsed duration ticker (`[data-study-session-timer]`)
+    - Accessible Stepper navigation bar (`[data-study-session-stepper]`)
+    - 5 Step Views:
+      1. Overview: Roadmap cards, capability counts, readiness indicator
+      2. Learning Outputs: Reuses `renderLearningOutputs` (summary, concepts, definitions, questions)
+      3. Flashcards: Interactive 3D flip card, chunk badge, Next/Prev navigation, keyboard shortcuts
+      4. Quiz: MCQ question navigation, answer selection, submission & evaluation via `quizScoreCalculator`, records attempt in IndexedDB via `quizAttemptService`
+      5. Summary: Elapsed session duration, steps completed, flashcards reviewed, quiz score breakdown
+    - Contextual note-taking: Quick note drawer button launching `openNoteEditor` pre-linked to resource
+    - Safe exit guard: Native confirmation modal (`#study-session-exit-dialog`) marking session abandoned
+    ↓
+StudySessionRepository (`js/storage/studySessionStore.js`)
+    - Persists session record in `studySessions` store (StudyLensDB v9)
+    - Indexed by `resourceId`, `startedAt`, `completedAt`, `status`
+    - Cascading cleanup on resource deletion (`deleteSessionsByResource`)
+```
 
+### Architectural Principles
 
+1. **Orchestration Over Duplication**:
+   The study session does not re-implement flashcard generation, quiz evaluation, or note editing. It orchestrates existing domain services (`renderLearningOutputs`, `calculateQuizResult`, `recordQuizAttempt`, `openNoteEditor`). Quiz attempts taken during a study session are properly recorded in the `quizAttempts` store and immediately reflected in quiz history and analytics.
 
+2. **Dynamic Step Planning**:
+   Resources may not have all study materials generated yet. `planSessionSteps` dynamically derives the step pipeline based on available data:
+   - Always begins with `overview` and concludes with `summary`.
+   - `outputs` step is inserted if the resource has summary, key concepts, definitions, or questions.
+   - `flashcards` step is inserted if flashcards exist.
+   - `quiz` step is inserted if a quiz exists.
+   If a resource is missing flashcards or a quiz, the session gracefully skips those steps without broken navigation or empty screens.
 
+3. **Accurate Clock & Real Duration**:
+   Elapsed duration is measured via pure wall-clock difference `calculateElapsedMs(startedAt, completedAt)`. Timers are never simulated or fabricated. Formatted durations follow clean, compact output (`0s`, `1m 24s`, `1h 10m`).
+
+4. **Cascading Lifecycle Management**:
+   Deleting a resource in the Resource Viewer or Library executes `deleteResourceCascade(resourceId)` which automatically removes all related study session records in `studySessions` via `studySessionRepository.deleteSessionsByResource(resourceId)`.

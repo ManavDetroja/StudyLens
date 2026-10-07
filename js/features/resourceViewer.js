@@ -38,6 +38,10 @@ import {
     getLiveProcessingJob,
 } from './processingService.js';
 import { getResourceCounts } from './resourceMetadata.js';
+import { openStudySession } from './studySessionUI.js';
+import { studySessionRepository } from '../storage/studySessionStore.js';
+import { formatSessionDuration } from '../storage/studySessionValidation.js';
+import { assessResourceReadiness } from './studySessionService.js';
 
 let activeResource = null;
 let pendingDeleteId = null;
@@ -377,7 +381,60 @@ function renderCapabilitiesSummary(resource, counts, processed) {
     container.append(grid);
 }
 
-function renderResource(resource, processed = null, outputsSummary = null, quiz = null, fileBlobRecord = null, counts = null) {
+function renderSessionsSection(sessions) {
+    const section = document.querySelector('[data-resource-viewer-sessions-section]');
+    const badge = document.querySelector('[data-resource-viewer-sessions-badge]');
+    const list = document.querySelector('[data-resource-viewer-sessions-list]');
+    if (!section || !list) return;
+
+    if (!Array.isArray(sessions) || sessions.length === 0) {
+        section.hidden = true;
+        list.replaceChildren();
+        if (badge) {
+            badge.textContent = '';
+            badge.hidden = true;
+        }
+        return;
+    }
+
+    section.hidden = false;
+    if (badge) {
+        badge.textContent = `${sessions.length} session${sessions.length === 1 ? '' : 's'}`;
+        badge.hidden = false;
+    }
+
+    list.replaceChildren();
+    sessions.forEach((s) => {
+        const item = document.createElement('div');
+        item.className = 'resource-session-item';
+
+        const info = document.createElement('div');
+        info.className = 'resource-session-info';
+
+        const statusBadge = document.createElement('span');
+        statusBadge.className = `badge ${s.status === 'completed' ? 'tone-blue' : 'tone-amber'}`;
+        statusBadge.textContent = s.status === 'completed' ? 'Completed' : 'Abandoned';
+
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'resource-session-date';
+        dateSpan.textContent = formatResourceDate(s.startedAt);
+
+        const durationSpan = document.createElement('span');
+        durationSpan.className = 'resource-session-duration';
+        durationSpan.textContent = s.durationMs ? formatSessionDuration(s.durationMs) : '';
+
+        const stepsSpan = document.createElement('span');
+        stepsSpan.className = 'resource-session-steps';
+        const stepsCount = Array.isArray(s.stepsCompleted) ? s.stepsCompleted.length : 0;
+        stepsSpan.textContent = `${stepsCount} step${stepsCount === 1 ? '' : 's'}`;
+
+        info.append(statusBadge, dateSpan, durationSpan, stepsSpan);
+        item.append(info);
+        list.append(item);
+    });
+}
+
+function renderResource(resource, processed = null, outputsSummary = null, quiz = null, fileBlobRecord = null, counts = null, sessions = null) {
     const display = getProcessingDisplay(resource, {
         job: getLiveProcessingJob(resource.id),
         hasProcessedContent: Boolean(processed?.normalizedText),
@@ -393,6 +450,18 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
     }
     renderProcessingPanel(display);
     document.querySelector('[data-resource-viewer-edit]').hidden = resource.type !== 'text';
+
+    const startSessionBtn = document.querySelector('[data-resource-viewer-start-session]');
+    if (startSessionBtn) {
+        const readiness = assessResourceReadiness(resource, { processed });
+        if (!readiness.ready) {
+            startSessionBtn.disabled = true;
+            startSessionBtn.title = readiness.message || 'Resource not ready for study';
+        } else {
+            startSessionBtn.disabled = false;
+            startSessionBtn.removeAttribute('title');
+        }
+    }
 
     /* Updated date — show only when meaningfully different from created date */
     const updatedElement = document.querySelector('[data-resource-viewer-updated]');
@@ -635,6 +704,7 @@ function renderResource(resource, processed = null, outputsSummary = null, quiz 
     renderFileSection(resource, fileBlobRecord, processed);
     renderVideoSection(resource, processed);
     renderCapabilitiesSummary(resource, counts, processed);
+    renderSessionsSection(sessions);
     renderResourceContent(document.querySelector('[data-resource-viewer-content]'), resource.content, resource.type, processed);
     renderTags(resource.tags);
 }
@@ -681,8 +751,15 @@ export async function refreshResourceViewer(resourceId) {
         // Enhancement
     }
 
-    renderResource(resource, processed, outputsSummary, quiz, fileBlobRecord, counts);
-    return { resource, processed, outputsSummary, quiz, fileBlobRecord, counts };
+    let sessions = null;
+    try {
+        sessions = await studySessionRepository.getSessionsByResource(resourceId);
+    } catch {
+        // Enhancement
+    }
+
+    renderResource(resource, processed, outputsSummary, quiz, fileBlobRecord, counts, sessions);
+    return { resource, processed, outputsSummary, quiz, fileBlobRecord, counts, sessions };
 }
 
 export async function openResourceViewer(resourceId) {
@@ -809,6 +886,12 @@ export async function deleteResourceCascade(resourceId) {
         console.warn('StudyLens could not clean up file blob for deleted resource.', fileBlobCleanupError);
     }
 
+    try {
+        await studySessionRepository.deleteSessionsByResource(resourceId);
+    } catch (sessionCleanupError) {
+        console.warn('StudyLens could not clean up study sessions for deleted resource.', sessionCleanupError);
+    }
+
     revokeActiveBlobUrl();
     notifyResourcesChanged({ action: 'deleted', resourceId });
     if (activeResource && activeResource.id === resourceId) {
@@ -818,6 +901,13 @@ export async function deleteResourceCascade(resourceId) {
 }
 
 export function initResourceViewer() {
+    document.querySelector('[data-resource-viewer-start-session]')?.addEventListener('click', () => {
+        if (!activeResource) return;
+        const resId = activeResource.id;
+        closeDialog(viewerDialog());
+        void openStudySession(resId);
+    });
+
     document.querySelector('[data-resource-viewer-extract-pdf]')?.addEventListener('click', async (event) => {
         if (!activeResource || (activeResource.type !== 'pdf' && activeResource.type !== 'image')) return;
         if (isProcessingBusy(activeResource.id)) return;

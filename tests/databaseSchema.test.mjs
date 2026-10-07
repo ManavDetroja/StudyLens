@@ -113,12 +113,12 @@ class MockIDBTransaction {
 
 /* ── Unit Tests ─────────────────────────────────────────────────── */
 
-test('1. DATABASE_VERSION is set to 8', () => {
-    assert.strictEqual(DATABASE_VERSION, 8);
+test('1. DATABASE_VERSION is set to 9', () => {
+    assert.strictEqual(DATABASE_VERSION, 9);
     assert.strictEqual(DATABASE_NAME, 'StudyLensDB');
 });
 
-test('2. ALL_REQUIRED_STORES lists all 7 canonical stores in the codebase', () => {
+test('2. ALL_REQUIRED_STORES lists all 8 canonical stores in the codebase', () => {
     assert.deepStrictEqual([...ALL_REQUIRED_STORES], [
         'resources',
         'processedContent',
@@ -127,10 +127,11 @@ test('2. ALL_REQUIRED_STORES lists all 7 canonical stores in the codebase', () =
         'quizAttempts',
         'notes',
         'fileBlobs',
+        'studySessions',
     ]);
 });
 
-test('3. upgradeDatabaseSchema creates all 7 stores and all indexes on fresh DB (v0 -> v8)', () => {
+test('3. upgradeDatabaseSchema creates all 8 stores and all indexes on fresh DB (v0 -> v9)', () => {
     const db = new MockIDBDatabase();
     const tx = new MockIDBTransaction(db);
 
@@ -325,7 +326,7 @@ test('9. DatabaseConnection post-open verification rejects with DATABASE_SCHEMA_
     const connection = new DatabaseConnection({
         indexedDBFactory: mockFactory,
         databaseName: 'TestIncompleteDB',
-        version: 8,
+        version: 9,
     });
 
     await assert.rejects(async () => {

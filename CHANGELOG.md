@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.24.0 — 2026-10-07
+
+- Implemented Study Session Mode (Day 24), unifying existing learning tools into one focused, sequential, distracted-free study workflow:
+  `Select Resource` → `Start Study Session` → `Resource Overview` → `Learning Outputs` → `Flashcards` → `Quiz` → `Session Complete` → `Session Summary`.
+- Upgraded Database Schema to version 9 (StudyLensDB v9):
+  - Added `studySessions` store with `id` keyPath and indexes: `resourceId`, `startedAt`, `completedAt`, and `status`.
+  - Upgraded both v0→v9 fresh initialization and existing v8→v9 migration paths.
+- Built Study Session Validation & Modeling Layer (`js/storage/studySessionValidation.js`):
+  - Defines `STUDY_SESSION_STATUSES` (`active`, `completed`, `abandoned`).
+  - Strict immutable preservation: prevents modification of `id`, `resourceId`, or `startedAt`.
+  - Pure duration calculation (`calculateElapsedMs`) and concise human-friendly formatting (`formatSessionDuration`).
+- Built Persistent Study Session Store (`js/storage/studySessionStore.js`):
+  - `StudySessionRepository` class exporting singleton `studySessionRepository`.
+  - Supports `saveSession`, `getSession`, `getSessionsByResource`, `getRecentSessions`, `deleteSession`, `deleteSessionsByResource`, and `clearSessions`.
+- Built Study Session Service (`js/features/studySessionService.js`):
+  - Evaluates resource study readiness (`assessResourceReadiness`) preventing study runs on processing or empty resources.
+  - Dynamically plans available study steps (`planSessionSteps`), adapting to generated materials without hardcoded steps.
+  - Manages active in-memory session lifecycle (`startStudySession`, `markStepCompleted`, `completeStudySession`, `abandonStudySession`).
+  - Employs true in-memory timers based on actual clock timestamps (`calculateElapsedMs`).
+- Built Study Session UI Controller (`js/features/studySessionUI.js`):
+  - Reuses existing view modules without code duplication (`renderLearningOutputs`, 3D interactive flashcards, MCQ question player with deterministic scoring via `calculateQuizResult` & persistence via `recordQuizAttempt`, and note-taking via `openNoteEditor`).
+  - Real-time in-memory elapsed timer badge (`[data-study-session-timer]`) with 1-second cadence.
+  - Interactive, accessible Stepper navigation bar (`[data-study-session-stepper]`) with step numbers, checkmarks, active highlighting, and disabled states.
+  - Safe exit confirmation flow (`#study-session-exit-dialog`), gracefully saving abandoned session records.
+- Integrated Study Session Mode in Resource Viewer (`js/features/resourceViewer.js`):
+  - Added "Start study session" primary action button with dynamic disabled state for non-ready resources.
+  - Added Past Study Sessions history section (`[data-resource-viewer-sessions-section]`) displaying duration, status, date, and step completion counts.
+  - Connected cascading session deletion (`deleteSessionsByResource`) to resource deletion workflow.
+- Responsive UI & Styling (`css/components.css`, `css/responsive.css`):
+  - Added styles for `.study-session-dialog`, `.study-session-header`, `.study-session-stepper`, `.study-overview-grid`, `.study-flashcard-stage`, and `.study-summary-card`.
+  - Responsive footer actions with natural wrapping and mobile touch stacking, preventing horizontal modal overflow.
+- Added TypeScript declarations in `ts/types.ts` (`StudySession`, `StudySessionStatus`, `StudySessionStep`, `StudySessionReadiness`).
+- Added 9 unit tests in `tests/studySession.test.mjs` (390 total tests, 389 passing in Node, 1 browser-only skipped; 100% pass rate).
+- Verified full browser runtime execution in Headless Chrome via CDP across 12 verification checks (`scratch/verify_day24_browser.mjs`).
+
 ## 0.23.0 — 2026-10-06
 
 - Implemented the StudyLens Resource Management Workspace (Day 23), transforming the Library into a central, high-visibility workspace for managing multimodal learning resources.

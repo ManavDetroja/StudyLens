@@ -404,3 +404,37 @@ export interface LibraryFilterState {
     sort: string;
 }
 
+/** Lifecycle status for study sessions (Day 24). */
+export type StudySessionStatus = 'active' | 'completed' | 'abandoned';
+
+/** Step identifiers supported in study session workflows (Day 24). */
+export type StudySessionStepId = 'overview' | 'outputs' | 'flashcards' | 'quiz' | 'summary';
+
+/** A dynamically planned step in a study session (Day 24). */
+export interface StudySessionStep {
+    id: StudySessionStepId;
+    label: string;
+    available: boolean;
+    count: number;
+    description: string;
+}
+
+/** Persistent study session record stored in IndexedDB (Day 24). */
+export interface StudySession {
+    id: string;
+    resourceId: string;
+    startedAt: string;
+    completedAt: string | null;
+    status: StudySessionStatus;
+    durationMs: number | null;
+    stepsCompleted: string[];
+    metadata: Record<string, unknown>;
+}
+
+/** Readiness assessment result for launching a study session (Day 24). */
+export interface StudySessionReadiness {
+    ready: boolean;
+    reason?: string;
+    message?: string;
+}
+

@@ -166,12 +166,23 @@
 - [x] Add contextual empty states in Library for active filters (type, tag, status, search query) and format result count ("Showing X of Y resources").
 - [x] Add 7 comprehensive unit tests in `tests/resourceManagement.test.mjs` (381 total tests, 380 passing in Node, 1 browser-only skipped; 100% pass rate).
 - [x] Update TypeScript declarations in `ts/types.ts` (`ResourceTypePresentation`, `ResourceCapabilityCounts`, `LibraryFilterState`).
+- [x] Upgrade StudyLensDB to schema version 9 with `studySessions` object store and indexes (`resourceId`, `startedAt`, `completedAt`, `status`).
+- [x] Implement StudySession data model, lifecycle states ('active', 'completed', 'abandoned'), and validation (`js/storage/studySessionValidation.js`).
+- [x] Implement StudySessionRepository in `js/storage/studySessionStore.js` with CRUD methods and index-based querying.
+- [x] Implement StudySessionService in `js/features/studySessionService.js` orchestrating readiness evaluation, dynamic step planning (`overview` → `outputs` → `flashcards` → `quiz` → `summary`), active in-memory session tracking, step completion, and session completion/abandonment persistence.
+- [x] Build Study Session UI Controller in `js/features/studySessionUI.js` managing modal lifecycle, real-time in-memory elapsed timer, interactive stepper navigation, and reuse of existing view modules (`renderLearningOutputs`, flashcard 3D flip card, MCQ quiz player & attempt evaluation, and note editor).
+- [x] Add accessible modal dialog markup in `index.html` (`#study-session-dialog` and `#study-session-exit-dialog`).
+- [x] Integrate Study Session Mode in Resource Viewer (`js/features/resourceViewer.js` and `index.html`) with "Start study session" button, past study sessions history list, and cascading deletion.
+- [x] Add responsive component styles in `css/components.css` and `css/responsive.css` (zero horizontal overflow, flexible footers, touch-friendly stepper).
+- [x] Update TypeScript declarations in `ts/types.ts` (`StudySession`, `StudySessionStatus`, `StudySessionStep`, `StudySessionReadiness`).
+- [x] Add 9 comprehensive unit tests in `tests/studySession.test.mjs` (390 total tests, 389 passing in Node, 1 browser-only skipped; 100% pass rate).
+- [x] Verify full browser runtime execution in Headless Chrome via CDP across 12 verification checks (`scratch/verify_day24_browser.mjs`) with zero console errors.
 
 ## Next
 
-- [ ] Implement spaced repetition review (Leitner / SM-2) or multi-resource study sets (Day 24+).
+- [ ] Implement spaced repetition review (Leitner / SM-2) or multi-resource study sets (Day 25+).
 
 ## Explicitly deferred
 
-No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, local image resources, and YouTube video resources with transcript ingestion, unified content processing pipelines, resilient local processing queue & retry recovery system, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM. Day 20 unifies content processing across modalities. Day 21 introduces YouTube video resources and honest transcript ingestion. Day 22 establishes a robust local processing queue and recovery mechanism.
+No external AI or LLM APIs (Gemini, OpenAI, Claude); external NLP libraries; vector databases; embeddings; semantic search services; spaced repetition algorithms (Leitner, SM-2); rich text / WYSIWYG editors; authentication; or backend services have been implemented. Only manually entered text, local selectable-text PDF documents, local image resources, and YouTube video resources with transcript ingestion, unified content processing pipelines, resilient local processing queue & retry recovery system, resource management workspace, focused study session mode, source-grounded learning output generation, structured reader UI, interactive flashcard review with grounded backs, deterministic quiz system with authentic MCQs, persistent quiz attempt results & analytics, and persistent notes workspace are implemented. Day 19 improves deterministic source-grounded output quality. It does not introduce an LLM. Day 20 unifies content processing across modalities. Day 21 introduces YouTube video resources and honest transcript ingestion. Day 22 establishes a robust local processing queue and recovery mechanism. Day 23 establishes a resource management workspace. Day 24 connects existing learning aids into a focused study session mode.
 
